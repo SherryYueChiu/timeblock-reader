@@ -1,5 +1,18 @@
 <template>
   <div class="calendar-container">
+    <!-- 事件弹窗 -->
+    <EventModal
+      :is-open="isModalOpen"
+      :event="selectedEvent"
+      :date="selectedDate"
+      :is-date-blurred="selectedDate ? isDateBlurred(selectedDate) : false"
+      :is-event-blurred="selectedEvent && selectedDate ? isEventBlurred(selectedEvent._id, selectedDate) : false"
+      :date-mark="selectedDate ? getDateMark(selectedDate) : null"
+      @close="closeModal"
+      @toggle-date-blur="toggleDateBlur"
+      @toggle-event-blur="toggleEventBlur"
+      @update-date-mark="updateDateMark"
+    />
     <div class="calendar-header">
       <h1 class="month-year">{{ currentYear }}年{{ currentMonth }}月</h1>
       <button class="search-button" @click="handleSearch">
@@ -32,7 +45,24 @@
             'other-month': !day.isCurrentMonth,
             'today': day.isToday
           }"
+          @click="handleDayClick(day)"
         >
+          <!-- 日期标记遮罩 -->
+          <div 
+            v-if="getDateMark(day.fullDate)" 
+            class="date-mark-overlay"
+            :style="getMarkOverlayStyle(day.fullDate)"
+          >
+            <div v-if="getDateMark(day.fullDate)?.markText" class="date-mark-text">
+              {{ getDateMark(day.fullDate)?.markText }}
+            </div>
+            <img 
+              v-if="getDateMark(day.fullDate)?.stickerIndex" 
+              :src="getStickerPath(getDateMark(day.fullDate)!.stickerIndex!)" 
+              alt="贴图" 
+              class="date-mark-sticker" 
+            />
+          </div>
           <div class="day-number">{{ day.date }}</div>
           <div class="events">
             <!-- 普通事件（活动0、备忘3）和其他类型 -->
@@ -42,10 +72,12 @@
               class="event-item"
               :class="{
                 'event-task': event.type === 2,
-                'event-habit': event.type === 5
+                'event-habit': event.type === 5,
+                'blurred': isEventBlurred(event._id, day.fullDate)
               }"
               :style="event.type !== 2 && event.type !== 5 ? { backgroundColor: getColor(event.color) } : {}"
               :title="event.title"
+              @click.stop="handleEventClick(event, day.fullDate)"
             >
               <!-- 任务(2)：圆角矩形checkbox -->
               <template v-if="event.type === 2">
@@ -83,9 +115,11 @@
             :class="{
               'interval-start': isIntervalStart(interval, day.fullDate),
               'interval-end': isIntervalEnd(interval, day.fullDate),
-              'interval-middle': isIntervalMiddle(interval, day.fullDate)
+              'interval-middle': isIntervalMiddle(interval, day.fullDate),
+              'blurred': isEventBlurred(interval._id, day.fullDate)
             }"
             :style="{ '--interval-color': getColorForLine(interval.color) }"
+            @click.stop="handleEventClick(interval, day.fullDate)"
           >
             <div class="interval-content">
               <span 
@@ -139,6 +173,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
+import EventModal from './EventModal.vue';
 
 const props = defineProps<{
   timeBlocks: TimeBlock[];
@@ -150,8 +185,137 @@ const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
 const currentYear = computed(() => currentDate.value.getFullYear());
 const currentMonth = computed(() => currentDate.value.getMonth() + 1);
 
+// 弹窗状态
+const isModalOpen = ref(false);
+const selectedEvent = ref<TimeBlock | null>(null);
+const selectedDate = ref<Date | null>(null);
+
+// 模糊状态：存储被模糊的日期和事件ID
+const blurredDates = ref<Set<string>>(new Set()); // 格式: "YYYY-MM-DD"
+const blurredEvents = ref<Set<number>>(new Set()); // 事件ID集合
+
+// 日期标记状态：存储每个日期的遮罩、文字、贴图
+interface DateMark {
+  overlayColor: string;
+  overlayOpacity: number;
+  markText: string;
+  stickerIndex: number | null;
+}
+const dateMarks = ref<Map<string, DateMark>>(new Map()); // key: "YYYY-MM-DD"
+
 const handleSearch = () => {
   console.log('搜尋功能待實作');
+};
+
+// 处理事件点击
+const handleEventClick = (event: TimeBlock, dayDate?: Date) => {
+  selectedEvent.value = event;
+  // 如果有传入日期，使用传入的日期；否则从事件时间戳获取
+  if (dayDate) {
+    selectedDate.value = dayDate;
+  } else {
+    selectedDate.value = timestampToDate(event.dt_start);
+  }
+  isModalOpen.value = true;
+};
+
+// 处理日期格子点击（空白处）
+const handleDayClick = (day: { fullDate: Date; events: TimeBlock[] }) => {
+  // 所有日期都可以点击打开弹窗
+  selectedEvent.value = null;
+  selectedDate.value = day.fullDate;
+  isModalOpen.value = true;
+};
+
+// 格式化日期为 YYYY-MM-DD
+const formatDateKey = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// 切换日期模糊状态
+const toggleDateBlur = (date: Date | null) => {
+  if (!date) return;
+  const dateKey = formatDateKey(date);
+  if (blurredDates.value.has(dateKey)) {
+    blurredDates.value.delete(dateKey);
+  } else {
+    blurredDates.value.add(dateKey);
+  }
+};
+
+// 切换事件模糊状态
+const toggleEventBlur = (eventId: number) => {
+  if (blurredEvents.value.has(eventId)) {
+    blurredEvents.value.delete(eventId);
+  } else {
+    blurredEvents.value.add(eventId);
+  }
+};
+
+// 检查日期是否被模糊
+const isDateBlurred = (date: Date): boolean => {
+  const dateKey = formatDateKey(date);
+  return blurredDates.value.has(dateKey);
+};
+
+// 检查事件是否被模糊（考虑日期模糊和事件单独模糊）
+const isEventBlurred = (eventId: number, date: Date): boolean => {
+  // 如果事件被单独模糊，直接返回true
+  if (blurredEvents.value.has(eventId)) {
+    return true;
+  }
+  // 如果事件没有被单独模糊，检查日期是否被模糊
+  return isDateBlurred(date);
+};
+
+// 获取日期标记
+const getDateMark = (date: Date): DateMark | null => {
+  const dateKey = formatDateKey(date);
+  return dateMarks.value.get(dateKey) || null;
+};
+
+// 更新日期标记
+const updateDateMark = (date: Date | null, mark: DateMark | null) => {
+  if (!date) return;
+  const dateKey = formatDateKey(date);
+  if (mark) {
+    dateMarks.value.set(dateKey, mark);
+  } else {
+    dateMarks.value.delete(dateKey);
+  }
+};
+
+// 获取标记遮罩样式
+const getMarkOverlayStyle = (date: Date): Record<string, string> => {
+  const mark = getDateMark(date);
+  if (!mark) return {};
+  
+  const opacity = mark.overlayOpacity / 100;
+  const r = parseInt(mark.overlayColor.slice(1, 3), 16);
+  const g = parseInt(mark.overlayColor.slice(3, 5), 16);
+  const b = parseInt(mark.overlayColor.slice(5, 7), 16);
+  
+  return {
+    backgroundColor: `rgba(${r}, ${g}, ${b}, ${opacity})`
+  };
+};
+
+// 获取贴图路径
+const getStickerPath = (index: number): string => {
+  return `/stickers/ㄇㄚˊ幾兔－表情貼/${index}.png`;
+};
+
+// 关闭弹窗
+const closeModal = () => {
+  isModalOpen.value = false;
+  // 延迟重置，等待动画完成
+  setTimeout(() => {
+    selectedEvent.value = null;
+    selectedDate.value = null;
+  }, 300);
 };
 
 // 將時間戳轉換為日期對象
@@ -654,6 +818,53 @@ if (import.meta.env.DEV) {
   flex-direction: column;
   position: relative;
   overflow: visible;
+  cursor: pointer;
+}
+
+/* 日期标记遮罩 */
+.date-mark-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+  padding: 0.5rem;
+  mix-blend-mode: normal;
+}
+
+.date-mark-text {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  /* 文字居中显示 */
+  position: relative;
+  z-index: 1;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  text-align: center;
+  max-width: 100%;
+  padding: 0 0.5rem;
+  line-height: 1.4;
+}
+
+.date-mark-sticker {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  max-width: 60px;
+  max-height: 60px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  z-index: 2;
 }
 
 .calendar-day:hover {
@@ -715,6 +926,24 @@ if (import.meta.env.DEV) {
   opacity: 0.6;
 }
 
+.event-item.blurred {
+  filter: blur(4px);
+  user-select: none;
+  /* 保留 pointer-events 以允许点击恢复模糊状态 */
+}
+
+.interval-line.blurred {
+  filter: blur(4px);
+  /* 模糊的区间线需要可以点击来恢复 */
+  pointer-events: auto;
+}
+
+.interval-line.blurred * {
+  /* 允许点击模糊的区间线内容 */
+  pointer-events: auto;
+}
+
+
 /* 任务(2)和习惯(5)样式：无背景，只有checkbox和文字 */
 .event-task,
 .event-habit {
@@ -766,6 +995,11 @@ if (import.meta.env.DEV) {
   flex-direction: column;
   justify-content: flex-end;
   min-height: 18px;
+}
+
+.interval-line.blurred {
+  /* 模糊的区间线需要可以点击来恢复 */
+  pointer-events: auto;
 }
 
 .interval-content {
