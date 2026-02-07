@@ -1,16 +1,17 @@
 <template>
-  <Transition name="modal">
-    <div v-if="isOpen" class="modal-overlay" @click.self="handleClose">
-      <div class="modal-container">
-        <div class="modal-header">
-          <h2 v-if="event">{{ event.title }}</h2>
-          <h2 v-else>日期标记</h2>
-          <button class="modal-close" @click="handleClose">
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="isOpen" class="modal-overlay" @click.self="handleClose">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h2 v-if="event">{{ event.title }}</h2>
+            <h2 v-else>日期标记</h2>
+            <button class="modal-close" @click="handleClose">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
-          </button>
-        </div>
+            </button>
+          </div>
 
         <div class="modal-content">
           <!-- 事件详情 -->
@@ -39,72 +40,105 @@
 
           <!-- 日期标记（空白日期） -->
           <div v-else class="date-mark">
-            <div class="mark-overlay" :style="overlayStyle">
-              <div v-if="markText" class="mark-text">{{ markText }}</div>
-              <img v-if="selectedSticker" :src="selectedSticker" alt="贴图" class="mark-sticker" />
+            <!-- 预览区域 -->
+            <div class="preview-section">
+              <div class="section-title">预览效果</div>
+              <div class="mark-overlay" :style="overlayStyle">
+                <div v-if="markText" class="mark-text">{{ markText }}</div>
+                <img v-if="selectedSticker" :src="selectedSticker" alt="贴图" class="mark-sticker" />
+              </div>
             </div>
-            <div class="mark-controls">
-              <div class="control-group">
-                <label>遮罩颜色：</label>
-                <div class="color-selector">
-                  <div class="morandi-colors">
-                    <button
-                      v-for="color in morandiColors"
-                      :key="color.value"
-                      class="color-btn"
-                      :class="{ active: overlayColor === color.value }"
-                      :style="{ backgroundColor: color.value }"
-                      :title="color.name"
-                      @click="selectMorandiColor(color.value)"
-                    ></button>
+
+            <!-- 设置区域 -->
+            <div class="settings-section">
+              <!-- 背景遮罩设置 -->
+              <div class="settings-group">
+                <div class="group-title">背景遮罩</div>
+                <div class="control-item">
+                  <div class="control-label">颜色</div>
+                  <div class="color-selector">
+                    <div class="morandi-colors">
+                      <button
+                        v-for="color in morandiColors"
+                        :key="color.value"
+                        class="color-btn"
+                        :class="{ active: overlayColor === color.value }"
+                        :style="{ backgroundColor: color.value }"
+                        :title="color.name"
+                        @click="selectMorandiColor(color.value)"
+                      ></button>
+                    </div>
+                    <div class="custom-color-wrapper">
+                      <span class="custom-color-label">自定义：</span>
+                      <input type="color" v-model="overlayColor" @input="updateOverlayStyle" class="color-input" />
+                    </div>
                   </div>
-                  <input type="color" v-model="overlayColor" @input="updateOverlayStyle" class="color-input" />
+                </div>
+                <div class="control-item">
+                  <div class="control-label">透明度：{{ overlayOpacity }}%</div>
+                  <input type="range" v-model="overlayOpacity" min="0" max="100" @input="updateOverlayStyle" class="range-input" />
                 </div>
               </div>
-              <div class="control-group">
-                <label>遮罩透明度：</label>
-                <input type="range" v-model="overlayOpacity" min="0" max="100" @input="updateOverlayStyle" />
-                <span>{{ overlayOpacity }}%</span>
+
+              <!-- 标记文字设置 -->
+              <div class="settings-group">
+                <div class="group-title">标记文字</div>
+                <div class="control-item">
+                  <textarea 
+                    v-model="markText" 
+                    placeholder="输入标记文字，例如：有空" 
+                    rows="3"
+                    class="mark-text-input"
+                  ></textarea>
+                </div>
               </div>
-              <div class="control-group">
-                <label>标记文字：</label>
-                <textarea 
-                  v-model="markText" 
-                  placeholder="例如：有空" 
-                  rows="3"
-                  class="mark-text-input"
-                ></textarea>
-              </div>
-              <div class="control-group">
-                <label>选择贴图：</label>
+
+              <!-- 贴图设置 -->
+              <div class="settings-group">
+                <div class="group-title">选择贴图</div>
+                <div class="sticker-group-selector">
+                  <button
+                    v-for="group in stickerGroups"
+                    :key="group.id"
+                    class="sticker-group-btn"
+                    :class="{ active: selectedStickerGroup === group.id }"
+                    @click="selectStickerGroup(group.id)"
+                  >
+                    {{ group.name }}
+                  </button>
+                </div>
                 <div class="sticker-selector">
                   <button 
                     v-for="i in 40" 
                     :key="i"
                     class="sticker-btn"
-                    :class="{ active: selectedStickerIndex === i }"
+                    :class="{ active: isStickerSelected(i) }"
                     @click="selectSticker(i)"
                   >
                     <img :src="getStickerPath(i)" :alt="`贴图 ${i}`" />
                   </button>
                 </div>
+                <button v-if="selectedSticker" @click="clearSticker" class="clear-sticker-btn">清除贴图</button>
               </div>
-              <div class="control-group">
-                <button @click="resetStyle" class="clear-btn">重置样式</button>
+
+              <!-- 操作按钮 -->
+              <div class="action-buttons">
+                <button @click="resetStyle" class="action-btn reset-btn">重置所有设置</button>
               </div>
             </div>
           </div>
-        </div>
+          </div>
 
-        <div class="modal-footer">
-          <button class="footer-btn blur-btn" @click="toggleBlur">
-            {{ isBlurred ? '显示文字' : '模糊文字' }}
-          </button>
-          <button class="footer-btn close-btn" @click="handleClose">关闭</button>
+          <div class="modal-footer">
+            <button class="footer-btn blur-btn" @click="toggleBlur">
+              {{ isBlurred ? '解除隱私' : '保護隱私' }}
+            </button>
+            <button class="footer-btn close-btn" @click="handleClose">关闭</button>
+          </div>
         </div>
       </div>
-    </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -115,13 +149,7 @@ export interface DateMark {
   overlayColor: string;
   overlayOpacity: number;
   markText: string;
-  stickerIndex: number | null;
-}
-
-interface DateMark {
-  overlayColor: string;
-  overlayOpacity: number;
-  markText: string;
+  stickerGroup: string | null;
   stickerIndex: number | null;
 }
 
@@ -156,8 +184,18 @@ const isBlurred = computed({
 const overlayColor = ref('#646cff');
 const overlayOpacity = ref(33);
 const markText = ref('');
+const selectedStickerGroup = ref<string>('ㄇㄚˊ幾兔－表情貼');
 const selectedStickerIndex = ref<number | null>(null);
 const overlayStyle = ref<Record<string, string>>({});
+
+// 贴图组配置
+const stickerGroups = [
+  { id: 'ㄇㄚˊ幾兔－表情貼', name: '表情贴' },
+  { id: 'ㄇㄚˊ幾兔－表情貼2', name: '表情贴2' },
+  { id: 'ㄇㄚˊ幾兔－動態表情貼', name: '动态表情贴' }
+];
+
+const currentStickerGroup = computed(() => selectedStickerGroup.value);
 
 // 莫兰迪配色常用颜色
 const morandiColors = [
@@ -181,6 +219,9 @@ const selectMorandiColor = (color: string) => {
   updateOverlayStyle();
 };
 
+// 监听本地状态变化，同步到父组件
+let isUpdatingFromProps = false;
+
 // 监听弹窗打开和日期变化，重置状态（仅针对日期标记弹窗）
 watch([() => props.isOpen, () => props.date, () => props.event], ([isOpen, date, event]) => {
   // 只在日期标记弹窗打开时（有date但没有event）重置状态
@@ -192,12 +233,14 @@ watch([() => props.isOpen, () => props.date, () => props.event], ([isOpen, date,
       overlayColor.value = mark.overlayColor;
       overlayOpacity.value = mark.overlayOpacity;
       markText.value = mark.markText;
+      selectedStickerGroup.value = mark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
       selectedStickerIndex.value = mark.stickerIndex;
     } else {
       // 如果没有标记，重置为默认值
       overlayColor.value = '#646cff';
       overlayOpacity.value = 33;
       markText.value = '';
+      selectedStickerGroup.value = 'ㄇㄚˊ幾兔－表情貼';
       selectedStickerIndex.value = null;
     }
     updateOverlayStyle();
@@ -218,6 +261,7 @@ watch(() => props.dateMark, (newMark) => {
     overlayColor.value = newMark.overlayColor;
     overlayOpacity.value = newMark.overlayOpacity;
     markText.value = newMark.markText;
+    selectedStickerGroup.value = newMark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
     selectedStickerIndex.value = newMark.stickerIndex;
     updateOverlayStyle();
   } else if (props.date) {
@@ -225,6 +269,7 @@ watch(() => props.dateMark, (newMark) => {
     overlayColor.value = '#646cff';
     overlayOpacity.value = 33;
     markText.value = '';
+    selectedStickerGroup.value = 'ㄇㄚˊ幾兔－表情貼';
     selectedStickerIndex.value = null;
     updateOverlayStyle();
   }
@@ -233,15 +278,14 @@ watch(() => props.dateMark, (newMark) => {
   }, 0);
 });
 
-// 监听本地状态变化，同步到父组件
-let isUpdatingFromProps = false;
-watch([overlayColor, overlayOpacity, markText, selectedStickerIndex], () => {
+watch([overlayColor, overlayOpacity, markText, selectedStickerIndex, selectedStickerGroup], () => {
   if (isUpdatingFromProps || !props.date) return;
   
   const mark: DateMark = {
     overlayColor: overlayColor.value,
     overlayOpacity: overlayOpacity.value,
     markText: markText.value,
+    stickerGroup: selectedStickerIndex.value ? selectedStickerGroup.value : null,
     stickerIndex: selectedStickerIndex.value
   };
   // 只有当有内容时才保存标记
@@ -294,12 +338,24 @@ const timeRange = computed(() => {
 });
 
 const selectedSticker = computed(() => {
-  if (!selectedStickerIndex.value) return null;
+  if (!selectedStickerIndex.value || !selectedStickerGroup.value) return null;
   return getStickerPath(selectedStickerIndex.value);
 });
 
+// 检查贴图是否被选中（考虑组别）
+const isStickerSelected = (index: number): boolean => {
+  return selectedStickerIndex.value === index && selectedStickerGroup.value === currentStickerGroup.value;
+};
+
 const getStickerPath = (index: number): string => {
-  return `/stickers/ㄇㄚˊ幾兔－表情貼/${index}.png`;
+  return `/stickers/${selectedStickerGroup.value}/${index}.png`;
+};
+
+// 选择贴图组
+const selectStickerGroup = (groupId: string) => {
+  selectedStickerGroup.value = groupId;
+  // 切换组时清除已选贴图
+  selectedStickerIndex.value = null;
 };
 
 const selectSticker = (index: number) => {
@@ -319,6 +375,7 @@ const resetStyle = () => {
   overlayColor.value = '#646cff';
   overlayOpacity.value = 33;
   markText.value = '';
+  selectedStickerGroup.value = 'ㄇㄚˊ幾兔－表情貼';
   selectedStickerIndex.value = null;
   updateOverlayStyle();
 };
@@ -455,6 +512,146 @@ updateOverlayStyle();
   gap: 1.5rem;
 }
 
+/* 预览区域 */
+.preview-section {
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 设置区域 */
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.group-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 0.5rem;
+}
+
+.control-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.control-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.custom-color-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.custom-color-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.range-input {
+  width: 100%;
+  cursor: pointer;
+}
+
+.sticker-group-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.sticker-group-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.sticker-group-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.sticker-group-btn.active {
+  background-color: rgba(100, 108, 255, 0.2);
+  border-color: rgba(100, 108, 255, 0.5);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.clear-sticker-btn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  background-color: rgba(255, 77, 77, 0.15);
+  border: 1px solid rgba(255, 77, 77, 0.3);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.87);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.clear-sticker-btn:hover {
+  background-color: rgba(255, 77, 77, 0.25);
+  border-color: rgba(255, 77, 77, 0.5);
+}
+
+.action-buttons {
+  margin-top: 0.5rem;
+}
+
+.action-btn {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-btn {
+  background-color: rgba(255, 77, 77, 0.15);
+  border: 1px solid rgba(255, 77, 77, 0.3);
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.reset-btn:hover {
+  background-color: rgba(255, 77, 77, 0.25);
+  border-color: rgba(255, 77, 77, 0.5);
+}
+
 .mark-overlay {
   min-height: 200px;
   border-radius: 8px;
@@ -491,17 +688,6 @@ updateOverlayStyle();
   gap: 1rem;
 }
 
-.control-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.control-group label {
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
-}
 
 .color-selector {
   display: flex;
@@ -545,11 +731,6 @@ updateOverlayStyle();
   cursor: pointer;
 }
 
-.control-group input[type="range"] {
-  width: 100%;
-}
-
-.control-group input[type="text"],
 .mark-text-input {
   padding: 0.5rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -560,14 +741,10 @@ updateOverlayStyle();
   font-family: inherit;
   resize: vertical;
   min-height: 60px;
-}
-
-.mark-text-input {
   width: 100%;
   line-height: 1.5;
 }
 
-.control-group input[type="text"]:focus,
 .mark-text-input:focus {
   outline: none;
   border-color: rgba(100, 108, 255, 0.5);
@@ -613,20 +790,6 @@ updateOverlayStyle();
   object-fit: contain;
 }
 
-.clear-btn {
-  margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: rgba(255, 77, 77, 0.2);
-  border: 1px solid rgba(255, 77, 77, 0.5);
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.87);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.clear-btn:hover {
-  background-color: rgba(255, 77, 77, 0.3);
-}
 
 .modal-footer {
   display: flex;
@@ -720,6 +883,22 @@ updateOverlayStyle();
     min-height: 28px;
   }
 
+  .settings-group {
+    padding: 0.75rem;
+  }
+
+  .group-title {
+    font-size: 0.9rem;
+  }
+
+  .sticker-group-selector {
+    flex-direction: column;
+  }
+
+  .sticker-group-btn {
+    width: 100%;
+  }
+
   .modal-footer {
     padding: 1rem;
     flex-direction: column;
@@ -760,14 +939,22 @@ updateOverlayStyle();
     color: #213547;
   }
 
-  .control-group label {
+  .control-label {
     color: rgba(0, 0, 0, 0.6);
   }
 
-  .control-group input[type="text"],
   .mark-text-input {
     border-color: rgba(0, 0, 0, 0.2);
     background-color: rgba(255, 255, 255, 0.8);
+    color: #213547;
+  }
+
+  .settings-group {
+    background-color: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .group-title {
     color: #213547;
   }
 

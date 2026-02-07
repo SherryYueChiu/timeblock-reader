@@ -10,7 +10,6 @@ const hasLoadedFile = ref(false);
 const handleFileLoaded = (data: TimeBlock[]) => {
   timeBlocks.value = data;
   hasLoadedFile.value = true;
-  console.log('已載入', data.length, '個時間區塊');
 };
 </script>
 

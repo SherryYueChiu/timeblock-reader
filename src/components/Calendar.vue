@@ -14,7 +14,19 @@
       @update-date-mark="updateDateMark"
     />
     <div class="calendar-header">
-      <h1 class="month-year">{{ currentYear }}年{{ currentMonth }}月</h1>
+      <div class="month-year-container">
+        <button class="nav-button prev-month" @click="prevMonth" title="上一个月">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+        <h1 class="month-year" @click="goToToday">{{ currentYear }}年{{ currentMonth }}月</h1>
+        <button class="nav-button next-month" @click="nextMonth" title="下一个月">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+      </div>
       <button class="search-button" @click="handleSearch">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -58,7 +70,7 @@
             </div>
             <img 
               v-if="getDateMark(day.fullDate)?.stickerIndex" 
-              :src="getStickerPath(getDateMark(day.fullDate)!.stickerIndex!)" 
+              :src="getStickerPath(getDateMark(day.fullDate)!.stickerGroup, getDateMark(day.fullDate)!.stickerIndex!)" 
               alt="贴图" 
               class="date-mark-sticker" 
             />
@@ -73,7 +85,9 @@
               :class="{
                 'event-task': event.type === 2,
                 'event-habit': event.type === 5,
-                'blurred': isEventBlurred(event._id, day.fullDate)
+                'blurred': isEventBlurred(event._id, day.fullDate),
+                'no-left-radius': event.type === 0 && hasSameEventOnPreviousDay(event, day.fullDate),
+                'no-right-radius': event.type === 0 && hasSameEventOnNextDay(event, day.fullDate)
               }"
               :style="event.type !== 2 && event.type !== 5 ? { backgroundColor: getColor(event.color) } : {}"
               :title="event.title"
@@ -174,6 +188,7 @@
 import { computed, ref, watch } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
 import EventModal from './EventModal.vue';
+import type { DateMark } from './EventModal.vue';
 
 const props = defineProps<{
   timeBlocks: TimeBlock[];
@@ -195,16 +210,29 @@ const blurredDates = ref<Set<string>>(new Set()); // 格式: "YYYY-MM-DD"
 const blurredEvents = ref<Set<number>>(new Set()); // 事件ID集合
 
 // 日期标记状态：存储每个日期的遮罩、文字、贴图
-interface DateMark {
-  overlayColor: string;
-  overlayOpacity: number;
-  markText: string;
-  stickerIndex: number | null;
-}
 const dateMarks = ref<Map<string, DateMark>>(new Map()); // key: "YYYY-MM-DD"
 
 const handleSearch = () => {
-  console.log('搜尋功能待實作');
+  // 搜尋功能待實作
+};
+
+// 切换到上一个月
+const prevMonth = () => {
+  const newDate = new Date(currentDate.value);
+  newDate.setMonth(newDate.getMonth() - 1);
+  currentDate.value = newDate;
+};
+
+// 切换到下一个月
+const nextMonth = () => {
+  const newDate = new Date(currentDate.value);
+  newDate.setMonth(newDate.getMonth() + 1);
+  currentDate.value = newDate;
+};
+
+// 回到今天
+const goToToday = () => {
+  currentDate.value = new Date();
 };
 
 // 处理事件点击
@@ -304,8 +332,9 @@ const getMarkOverlayStyle = (date: Date): Record<string, string> => {
 };
 
 // 获取贴图路径
-const getStickerPath = (index: number): string => {
-  return `/stickers/ㄇㄚˊ幾兔－表情貼/${index}.png`;
+const getStickerPath = (stickerGroup: string | null, index: number): string => {
+  const group = stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
+  return `/stickers/${group}/${index}.png`;
 };
 
 // 关闭弹窗
@@ -365,8 +394,6 @@ const getActualEndDate = (event: TimeBlock): Date => {
 // 調試函數：檢查區間事件的日期範圍
 const debugIntervalEvent = (event: TimeBlock) => {
   const eventStart = timestampToDate(event.dt_start);
-  const eventEnd = timestampToDate(event.dt_end);
-  
   const startDateOnly = new Date(eventStart.getFullYear(), eventStart.getMonth(), eventStart.getDate());
   const actualEndDate = getActualEndDate(event);
   
@@ -378,27 +405,6 @@ const debugIntervalEvent = (event: TimeBlock) => {
     ? 1 
     : Math.ceil((actualEndDate.getTime() - startDateOnly.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   
-  // UTC時間
-  const startUTC = new Date(event.dt_start);
-  const endUTC = new Date(event.dt_end);
-  
-  console.log('═══════════════════════════════════════');
-  console.log(`🔍 區間事件調試: ${event.title}`);
-  console.log('───────────────────────────────────────');
-  console.log(`📅 事件開始時間戳: ${event.dt_start}`);
-  console.log(`📅 事件結束時間戳: ${event.dt_end}`);
-  console.log(`🌍 UTC開始時間: ${startUTC.toISOString()}`);
-  console.log(`🌍 UTC結束時間: ${endUTC.toISOString()}`);
-  console.log(`🌏 本地開始時間: ${eventStart.toLocaleString('zh-TW')}`);
-  console.log(`🌏 本地結束時間: ${eventEnd.toLocaleString('zh-TW')}`);
-  console.log(`🌏 本地開始日期: ${formatDate(eventStart)}`);
-  console.log(`🌏 本地結束日期: ${formatDate(eventEnd)}`);
-  console.log(`📅 實際開始日期: ${startDateStr}`);
-  console.log(`📅 實際結束日期: ${endDateStr}`);
-  console.log(`📅 持續天數: ${daysDiff} 天`);
-  console.log(`📅 全天事件: ${event.allday}`);
-  console.log(`⏰ 結束時間小時: ${eventEnd.getHours()}:${String(eventEnd.getMinutes()).padStart(2, '0')}`);
-  
   // 列出所有應該顯示此區間的日期
   const datesInRange: string[] = [];
   const current = new Date(startDateOnly);
@@ -406,8 +412,6 @@ const debugIntervalEvent = (event: TimeBlock) => {
     datesInRange.push(formatDate(new Date(current)));
     current.setDate(current.getDate() + 1);
   }
-  console.log(`📅 應顯示的日期範圍: ${datesInRange.join(', ')}`);
-  console.log('═══════════════════════════════════════');
   
   return {
     startDate: startDateStr,
@@ -423,9 +427,6 @@ const debugIntervalEvent = (event: TimeBlock) => {
 watch(() => props.timeBlocks, (newBlocks) => {
   const intervalEvents = newBlocks.filter(event => event.type === 4 && !event.dt_delete);
   if (intervalEvents.length > 0) {
-    console.log('═══════════════════════════════════════');
-    console.log(`📊 發現 ${intervalEvents.length} 個區間事件，開始檢查日期範圍...`);
-    console.log('═══════════════════════════════════════');
     intervalEvents.forEach(event => {
       debugIntervalEvent(event);
     });
@@ -644,6 +645,46 @@ const getIntervalEvents = (events: TimeBlock[]): TimeBlock[] => {
   return events.filter(event => event.type === 4);
 };
 
+// 檢查前一天是否有相同的事件（用於活動類型0）
+const hasSameEventOnPreviousDay = (event: TimeBlock, currentDate: Date): boolean => {
+  if (event.type !== 0) return false;
+  
+  const prevDate = new Date(currentDate);
+  prevDate.setDate(prevDate.getDate() - 1);
+  
+  // 檢查前一天是否有相同的事件（相同的_id或相同的標題和時間範圍）
+  const prevDayEvents = getEventsForDate(prevDate);
+  return prevDayEvents.some(e => 
+    e.type === 0 && 
+    (e._id === event._id || 
+    (e.title === event.title && e.dt_start === event.dt_start && e.dt_end === event.dt_end))
+  );
+};
+
+// 檢查後一天是否有相同的事件（用於活動類型0）
+const hasSameEventOnNextDay = (event: TimeBlock, currentDate: Date): boolean => {
+  if (event.type !== 0) return false;
+  
+  const nextDate = new Date(currentDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+  
+  // 檢查後一天是否有相同的事件
+  const nextDayEvents = getEventsForDate(nextDate);
+  return nextDayEvents.some(e => 
+    e.type === 0 && 
+    (e._id === event._id || 
+    (e.title === event.title && e.dt_start === event.dt_start && e.dt_end === event.dt_end))
+  );
+};
+
+// 獲取指定日期的事件列表
+const getEventsForDate = (date: Date): TimeBlock[] => {
+  return props.timeBlocks.filter(event => {
+    if (event.dt_delete) return false;
+    return isEventOnDate(event, date);
+  });
+};
+
 // 判斷某個日期是否是區間事件的開始日期
 const isIntervalStart = (event: TimeBlock, date: Date): boolean => {
   const eventStart = timestampToDate(event.dt_start);
@@ -691,12 +732,6 @@ const checkDateInInterval = (event: TimeBlock, date: Date): {
   const isMiddle = isIntervalMiddle(event, date);
   const isInRange = isEventOnDate(event, date);
   
-  console.log(`🔍 檢查日期 ${dateStr} 在區間 "${event.title}" 中的位置:`);
-  console.log(`   是否在範圍內: ${isInRange ? '✅' : '❌'}`);
-  console.log(`   是否為開始日期: ${isStart ? '✅' : '❌'}`);
-  console.log(`   是否為結束日期: ${isEnd ? '✅' : '❌'}`);
-  console.log(`   是否為中間日期: ${isMiddle ? '✅' : '❌'}`);
-  
   return {
     isStart,
     isEnd,
@@ -731,13 +766,57 @@ if (import.meta.env.DEV) {
   gap: 1rem;
 }
 
+.month-year-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
 .month-year {
   font-size: 2rem;
   font-weight: 600;
   margin: 0;
   color: rgba(255, 255, 255, 0.87);
-  flex: 1;
-  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
+  min-width: 150px;
+  text-align: center;
+}
+
+.month-year:hover {
+  color: rgba(100, 108, 255, 0.9);
+}
+
+.nav-button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  width: 36px;
+  height: 36px;
+}
+
+.nav-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.nav-button:active {
+  background-color: rgba(255, 255, 255, 0.15);
+  transform: scale(0.95);
+}
+
+.nav-button svg {
+  width: 100%;
+  height: 100%;
 }
 
 .search-button {
@@ -916,6 +995,17 @@ if (import.meta.env.DEV) {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+/* 活動事件相鄰時去除圓角 */
+.event-item.no-left-radius {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.event-item.no-right-radius {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .event-item:hover {
@@ -1104,8 +1194,19 @@ if (import.meta.env.DEV) {
     margin-bottom: 1.5rem;
   }
 
+  .month-year-container {
+    gap: 0.5rem;
+  }
+
   .month-year {
     font-size: 1.5rem;
+    min-width: 120px;
+  }
+
+  .nav-button {
+    width: 32px;
+    height: 32px;
+    padding: 0.4rem;
   }
 
   .search-button {
@@ -1305,6 +1406,32 @@ if (import.meta.env.DEV) {
 @media (prefers-color-scheme: light) {
   .month-year {
     color: #213547;
+  }
+
+  .month-year:hover {
+    color: rgba(100, 108, 255, 0.8);
+  }
+
+  .nav-button {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .nav-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.87);
+  }
+
+  .month-year:hover {
+    color: rgba(100, 108, 255, 0.8);
+  }
+
+  .nav-button {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .nav-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.87);
   }
 
   .calendar-grid {

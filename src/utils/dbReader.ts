@@ -44,7 +44,6 @@ export async function readDatabase(file: File): Promise<TimeBlock[]> {
     const result = db.exec('SELECT * FROM timeblock');
     
     if (result.length === 0) {
-      console.log('timeblock 表为空');
       return [];
     }
 
@@ -65,29 +64,6 @@ export async function readDatabase(file: File): Promise<TimeBlock[]> {
 
     // 关闭数据库
     db.close();
-
-    // 统计信息
-    const stats = {
-      总数: timeBlocks.length,
-      活动: timeBlocks.filter(t => t.type === 0).length,
-      任务: timeBlocks.filter(t => t.type === 2).length,
-      备忘: timeBlocks.filter(t => t.type === 3).length,
-      区间: timeBlocks.filter(t => t.type === 4).length,
-      习惯: timeBlocks.filter(t => t.type === 5).length,
-      已删除: timeBlocks.filter(t => t.dt_delete).length,
-      全天事件: timeBlocks.filter(t => t.allday === '1' || t.allday === 1 || t.allday === 'true' || t.allday === true).length
-    };
-
-    console.log('═══════════════════════════════════════');
-    console.log('📊 数据库读取成功');
-    console.log('═══════════════════════════════════════');
-    console.log('📈 统计信息:', stats);
-    console.log('───────────────────────────────────────');
-    console.log('📝 第一条记录详情:');
-    console.table(timeBlocks[0]);
-    console.log('───────────────────────────────────────');
-    console.log('📋 所有记录:', timeBlocks);
-    console.log('═══════════════════════════════════════');
 
     return timeBlocks;
   } catch (error) {
