@@ -24,9 +24,9 @@
               <span class="detail-label">内容：</span>
               <span class="detail-value">{{ event.description }}</span>
             </div>
-            <div class="detail-item" v-if="event.location">
+            <div class="detail-item">
               <span class="detail-label">地点：</span>
-              <span class="detail-value">{{ event.location }}</span>
+              <span class="detail-value">{{ event.location || '无' }}</span>
             </div>
             <div class="detail-item">
               <span class="detail-label">时间范围：</span>
@@ -232,6 +232,7 @@ const morandiColors = [
 const selectMorandiColor = (color: string) => {
   overlayColor.value = color;
   updateOverlayStyle();
+};
 
 // 监听本地状态变化，同步到父组件
 let isUpdatingFromProps = false;
@@ -476,7 +477,7 @@ const resetStyle = () => {
   selectedStickerGroup.value = 'ㄇㄚˊ幾兔－表情貼';
   selectedStickerIndex.value = null;
   updateOverlayStyle();
-});
+};
 
 // 清理APNG定时器
 onBeforeUnmount(() => {

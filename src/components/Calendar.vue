@@ -13,6 +13,63 @@
       @toggle-event-blur="toggleEventBlur"
       @update-date-mark="updateDateMark"
     />
+    <!-- 搜索弹窗 -->
+    <Teleport to="body">
+      <div v-if="isSearchOpen" class="search-modal-overlay" @click.self="closeSearch">
+      <div class="search-modal-container">
+        <div class="search-modal-header">
+          <h2>搜索事件</h2>
+          <button class="search-modal-close" @click="closeSearch">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="search-modal-content">
+          <div class="search-input-wrapper">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="搜索事件标题、内容、地点..."
+              class="search-input"
+              @input="performSearch"
+            />
+          </div>
+          <div v-if="searchResults.length > 0" class="search-results">
+            <div class="search-results-header">
+              找到 {{ searchResults.length }} 个结果
+            </div>
+            <div class="search-results-list">
+              <div
+                v-for="result in searchResults"
+                :key="result.event._id"
+                class="search-result-item"
+                @click="goToEvent(result)"
+              >
+                <div class="result-title">{{ result.event.title }}</div>
+                <div class="result-meta">
+                  <span class="result-date">{{ result.dateStr }}</span>
+                  <span class="result-type">{{ getEventTypeText(result.event.type) }}</span>
+                </div>
+                <div v-if="result.event.description" class="result-description">
+                  {{ result.event.description }}
+                </div>
+                <div v-if="result.event.location" class="result-location">
+                  📍 {{ result.event.location }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="searchQuery && !isSearching" class="search-no-results">
+            没有找到匹配的事件
+          </div>
+          <div v-if="!searchQuery" class="search-placeholder">
+            输入关键词搜索事件
+          </div>
+        </div>
+      </div>
+      </div>
+    </Teleport>
     <div class="calendar-header">
       <div class="month-year-container">
         <button class="nav-button prev-month" @click="prevMonth" title="上一个月">
@@ -206,6 +263,12 @@ const isModalOpen = ref(false);
 const selectedEvent = ref<TimeBlock | null>(null);
 const selectedDate = ref<Date | null>(null);
 
+// 搜索状态
+const isSearchOpen = ref(false);
+const searchQuery = ref('');
+const searchResults = ref<Array<{ event: TimeBlock; date: Date; dateStr: string }>>([]);
+const isSearching = ref(false);
+
 // 模糊状态：存储被模糊的日期和事件ID
 const blurredDates = ref<Set<string>>(new Set()); // 格式: "YYYY-MM-DD"
 const blurredEvents = ref<Set<number>>(new Set()); // 事件ID集合
@@ -213,8 +276,103 @@ const blurredEvents = ref<Set<number>>(new Set()); // 事件ID集合
 // 日期标记状态：存储每个日期的遮罩、文字、贴图
 const dateMarks = ref<Map<string, DateMark>>(new Map()); // key: "YYYY-MM-DD"
 
+// 打开搜索弹窗
 const handleSearch = () => {
-  // 搜尋功能待實作
+  isSearchOpen.value = true;
+  searchQuery.value = '';
+  searchResults.value = [];
+};
+
+// 关闭搜索弹窗
+const closeSearch = () => {
+  isSearchOpen.value = false;
+  searchQuery.value = '';
+  searchResults.value = [];
+};
+
+// 执行搜索
+const performSearch = () => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) {
+    searchResults.value = [];
+    return;
+  }
+
+  isSearching.value = true;
+  const results: Array<{ event: TimeBlock; date: Date; dateStr: string }> = [];
+
+  // 搜索所有未删除的事件
+  const validEvents = props.timeBlocks.filter(event => !event.dt_delete);
+
+  for (const event of validEvents) {
+    // 搜索标题
+    const titleMatch = event.title?.toLowerCase().includes(query);
+    // 搜索描述
+    const descMatch = event.description?.toLowerCase().includes(query);
+    // 搜索地点
+    const locationMatch = event.location?.toLowerCase().includes(query);
+
+    if (titleMatch || descMatch || locationMatch) {
+      // 获取事件的开始日期
+      const eventDate = timestampToDate(event.dt_start);
+      const dateStr = formatEventDate(eventDate, event);
+      
+      results.push({
+        event,
+        date: eventDate,
+        dateStr
+      });
+    }
+  }
+
+  // 按日期排序（最新的在前）
+  results.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  searchResults.value = results;
+  isSearching.value = false;
+};
+
+// 格式化事件日期显示
+const formatEventDate = (date: Date, event: TimeBlock): string => {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  
+  const isAllDay = event.allday === '1' || event.allday === 1 || event.allday === 'true';
+  
+  if (isAllDay) {
+    return `${year}年${month}月${day}日`;
+  } else {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+  }
+};
+
+// 获取事件类型文本
+const getEventTypeText = (type: number): string => {
+  const types: Record<number, string> = {
+    0: '活动',
+    2: '任务',
+    3: '备忘',
+    4: '区间',
+    5: '习惯'
+  };
+  return types[type] || '未知';
+};
+
+// 跳转到事件
+const goToEvent = (result: { event: TimeBlock; date: Date; dateStr: string }) => {
+  // 跳转到事件所在的月份
+  currentDate.value = new Date(result.date.getFullYear(), result.date.getMonth(), 1);
+  
+  // 关闭搜索弹窗
+  closeSearch();
+  
+  // 打开事件详情弹窗
+  selectedEvent.value = result.event;
+  selectedDate.value = result.date;
+  isModalOpen.value = true;
 };
 
 // 切换到上一个月
@@ -901,6 +1059,183 @@ if (import.meta.env.DEV) {
   height: 24px;
 }
 
+/* 搜索弹窗样式 */
+.search-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.search-modal-container {
+  background-color: rgba(30, 30, 30, 0.95);
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.search-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.search-modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.search-modal-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.search-modal-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.search-modal-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.search-input-wrapper {
+  margin-bottom: 1.5rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.87);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: rgba(100, 108, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.search-results-header {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.search-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.search-result-item {
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.search-result-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(100, 108, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.result-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 0.5rem;
+}
+
+.result-meta {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.result-date {
+  color: rgba(100, 108, 255, 0.9);
+  font-weight: 500;
+}
+
+.result-type {
+  padding: 0.2rem 0.5rem;
+  background-color: rgba(100, 108, 255, 0.2);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.result-description {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 0.5rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.result-location {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 0.5rem;
+}
+
+.search-no-results,
+.search-placeholder {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1rem;
+}
+
+.search-placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .calendar-grid {
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
@@ -1269,6 +1604,36 @@ if (import.meta.env.DEV) {
     height: 20px;
   }
 
+  .search-modal-container {
+    max-width: 95%;
+    max-height: 90vh;
+  }
+
+  .search-modal-header {
+    padding: 1rem;
+  }
+
+  .search-modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .search-modal-content {
+    padding: 1rem;
+  }
+
+  .search-result-item {
+    padding: 0.75rem;
+  }
+
+  .result-title {
+    font-size: 1rem;
+  }
+
+  .result-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
   .calendar-grid {
     padding: 0.75rem;
     border-radius: 8px;
@@ -1456,6 +1821,81 @@ if (import.meta.env.DEV) {
 @media (prefers-color-scheme: light) {
   .month-year {
     color: #213547;
+  }
+
+  .search-modal-container {
+    background-color: rgba(255, 255, 255, 0.95);
+  }
+
+  .search-modal-header {
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .search-modal-header h2 {
+    color: #213547;
+  }
+
+  .search-modal-close {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .search-modal-close:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.87);
+  }
+
+  .search-input {
+    border-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(255, 255, 255, 0.8);
+    color: #213547;
+  }
+
+  .search-input:focus {
+    border-color: rgba(100, 108, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.95);
+  }
+
+  .search-input::placeholder {
+    color: rgba(0, 0, 0, 0.5);
+  }
+
+  .search-results-header {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .search-result-item {
+    border-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .search-result-item:hover {
+    background-color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(100, 108, 255, 0.3);
+  }
+
+  .result-title {
+    color: #213547;
+  }
+
+  .result-meta {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .result-date {
+    color: rgba(100, 108, 255, 0.8);
+  }
+
+  .result-description {
+    color: rgba(0, 0, 0, 0.7);
+  }
+
+  .result-location {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .search-no-results,
+  .search-placeholder {
+    color: rgba(0, 0, 0, 0.5);
   }
 
   .month-year:hover {
