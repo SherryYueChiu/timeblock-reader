@@ -5,7 +5,7 @@
         <div class="modal-container">
           <div class="modal-header">
             <h2 v-if="event">{{ event.title }}</h2>
-            <h2 v-else>日期标记</h2>
+            <h2 v-else>日期標記</h2>
             <button class="modal-close" @click="handleClose">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 6L6 18M6 6l12 12"/>
@@ -14,48 +14,48 @@
           </div>
 
         <div class="modal-content">
-          <!-- 事件详情 -->
+          <!-- 活動詳情 -->
           <div v-if="event" class="event-details">
             <div class="detail-item" v-if="event.title">
-              <span class="detail-label">标题：</span>
+              <span class="detail-label">標題：</span>
               <span class="detail-value">{{ event.title }}</span>
             </div>
             <div class="detail-item" v-if="event.description">
-              <span class="detail-label">内容：</span>
+              <span class="detail-label">內容：</span>
               <span class="detail-value">{{ event.description }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">地点：</span>
+              <span class="detail-label">地點：</span>
               <span class="detail-value">{{ event.location || '无' }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">时间范围：</span>
+              <span class="detail-label">時間範圍：</span>
               <span class="detail-value">{{ timeRange }}</span>
             </div>
             <div class="detail-item" v-if="eventTypeText">
-              <span class="detail-label">类型：</span>
+              <span class="detail-label">類型：</span>
               <span class="detail-value">{{ eventTypeText }}</span>
             </div>
           </div>
 
-          <!-- 日期标记（空白日期） -->
+          <!-- 日期標記（空白日期） -->
           <div v-else class="date-mark">
-            <!-- 预览区域 -->
+            <!-- 預覽區域 -->
             <div class="preview-section">
-              <div class="section-title">预览效果</div>
+              <div class="section-title">預覽效果</div>
               <div class="mark-overlay" :style="overlayStyle">
                 <div v-if="markText" class="mark-text">{{ markText }}</div>
-                <img v-if="selectedSticker" :src="selectedSticker" alt="贴图" class="mark-sticker" />
+                <img v-if="selectedSticker" :src="selectedSticker" alt="貼圖" class="mark-sticker" />
               </div>
             </div>
 
-            <!-- 设置区域 -->
+            <!-- 設置區域 -->
             <div class="settings-section">
-              <!-- 背景遮罩设置 -->
+              <!-- 背景遮罩設置 -->
               <div class="settings-group">
                 <div class="group-title">背景遮罩</div>
                 <div class="control-item">
-                  <div class="control-label">颜色</div>
+                  <div class="control-label">顏色</div>
                   <div class="color-selector">
                     <div class="morandi-colors">
                       <button
@@ -69,7 +69,7 @@
                       ></button>
                     </div>
                     <div class="custom-color-wrapper">
-                      <span class="custom-color-label">自定义：</span>
+                      <span class="custom-color-label">自定義：</span>
                       <input type="color" v-model="overlayColor" @input="updateOverlayStyle" class="color-input" />
                     </div>
                   </div>
@@ -80,22 +80,22 @@
                 </div>
               </div>
 
-              <!-- 标记文字设置 -->
+              <!-- 標記文字設置 -->
               <div class="settings-group">
-                <div class="group-title">标记文字</div>
+                <div class="group-title">標記文字</div>
                 <div class="control-item">
                   <textarea 
                     v-model="markText" 
-                    placeholder="输入标记文字，例如：有空" 
+                    placeholder="輸入標記文字，例如：有空" 
                     rows="3"
                     class="mark-text-input"
                   ></textarea>
                 </div>
               </div>
 
-              <!-- 贴图设置 -->
+              <!-- 貼圖設置 -->
               <div class="settings-group">
-                <div class="group-title">选择贴图</div>
+                <div class="group-title">選擇貼圖</div>
                 <div class="sticker-group-selector">
                   <button
                     v-for="group in stickerGroups"
@@ -118,7 +118,7 @@
                     <img 
                       :ref="(el) => setApngImageRef(el as HTMLImageElement, index + 1)"
                       :src="getStickerImageSrc(path)" 
-                      :alt="`贴图 ${index + 1}`"
+                      :alt="`貼圖 ${index + 1}`"
                       :key="`img-${selectedStickerGroup}-${index + 1}`"
                       class="sticker-image"
                     />
@@ -127,9 +127,9 @@
                 <button v-if="selectedSticker" @click="clearSticker" class="clear-sticker-btn">清除贴图</button>
               </div>
 
-              <!-- 操作按钮 -->
+              <!-- 操作按鈕 -->
               <div class="action-buttons">
-                <button @click="resetStyle" class="action-btn reset-btn">重置所有设置</button>
+                <button @click="resetStyle" class="action-btn reset-btn">重置所有設置</button>
               </div>
             </div>
           </div>
@@ -139,7 +139,7 @@
             <button class="footer-btn blur-btn" @click="toggleBlur">
               {{ isBlurred ? '解除隱私' : '保護隱私' }}
             </button>
-            <button class="footer-btn close-btn" @click="handleClose">关闭</button>
+            <button class="footer-btn close-btn" @click="handleClose">關閉</button>
           </div>
         </div>
       </div>
@@ -175,7 +175,7 @@ const emit = defineEmits<{
   updateDateMark: [date: Date | null, mark: DateMark | null];
 }>();
 
-// 使用props传入的模糊状态
+// 使用props傳入的模糊狀態
 const isBlurred = computed({
   get: () => {
     if (props.event) {
@@ -184,7 +184,7 @@ const isBlurred = computed({
     return props.isDateBlurred || false;
   },
   set: (_value: boolean) => {
-    // 这个setter不会被直接使用，但保留以支持v-model
+    // 這個setter不會被直接使用，但保留以支持v-model
   }
 });
 const overlayColor = ref('#646cff');
@@ -194,16 +194,16 @@ const selectedStickerGroup = ref<string>('ㄇㄚˊ幾兔－表情貼');
 const selectedStickerIndex = ref<number | null>(null);
 const overlayStyle = ref<Record<string, string>>({});
 
-// 贴图组配置
+// 貼圖組配置
 const stickerGroups = [
-  { id: 'ㄇㄚˊ幾兔－表情貼', name: '表情贴' },
-  { id: 'ㄇㄚˊ幾兔－表情貼2', name: '表情贴2' },
-  { id: 'ㄇㄚˊ幾兔－動態表情貼', name: '动态表情贴' }
+  { id: 'ㄇㄚˊ幾兔－表情貼', name: '表情貼' },
+  { id: 'ㄇㄚˊ幾兔－表情貼2', name: '表情貼2' },
+  { id: 'ㄇㄚˊ幾兔－動態表情貼', name: '動態表情貼' }
 ];
 
 const currentStickerGroup = computed(() => selectedStickerGroup.value);
 
-// 生成当前组的贴图路径数组（确保响应式更新）
+// 生成當前組的貼圖路徑數組（確保響應式更新）
 const stickerPaths = computed(() => {
   const paths: string[] = [];
   for (let i = 1; i <= 40; i++) {
@@ -212,7 +212,7 @@ const stickerPaths = computed(() => {
   return paths;
 });
 
-// 莫兰迪配色常用颜色
+// 莫蘭迪配色常用顏色
 const morandiColors = [
   { name: '灰蓝', value: '#9BA8B8' },
   { name: '灰绿', value: '#A8B5A0' },
@@ -222,36 +222,36 @@ const morandiColors = [
   { name: '浅灰', value: '#D4D0C8' },
   { name: '暖灰', value: '#C8C4B8' },
   { name: '灰褐', value: '#B8B0A8' },
-  { name: '淡蓝', value: '#B0C4D8' },
-  { name: '淡绿', value: '#B8C8B0' },
+  { name: '淡藍', value: '#B0C4D8' },
+  { name: '淡綠', value: '#B8C8B0' },
   { name: '淡粉', value: '#D8C4C4' },
   { name: '淡紫', value: '#D0C4D8' }
 ];
 
-// 选择莫兰迪颜色
+// 選擇莫蘭迪顏色
 const selectMorandiColor = (color: string) => {
   overlayColor.value = color;
   updateOverlayStyle();
 };
 
-// 监听本地状态变化，同步到父组件
+// 監聽本地狀態變化，同步到父組件
 let isUpdatingFromProps = false;
 
-// 监听弹窗打开和日期变化，重置状态（仅针对日期标记弹窗）
+// 監聽彈窗打開和日期變化，重置狀態（僅針對日期標記彈窗）
 watch([() => props.isOpen, () => props.date, () => props.event], ([isOpen, date, event]) => {
-  // 只在日期标记弹窗打开时（有date但没有event）重置状态
+  // 只在日期標記彈窗打開時（有date但没有event）重置狀態
   if (isOpen && date && !event) {
     isUpdatingFromProps = true;
     const mark = props.dateMark;
     if (mark) {
-      // 如果有保存的标记，使用保存的值
+      // 如果有保存的標記，使用保存的值
       overlayColor.value = mark.overlayColor;
       overlayOpacity.value = mark.overlayOpacity;
       markText.value = mark.markText;
       selectedStickerGroup.value = mark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
       selectedStickerIndex.value = mark.stickerIndex;
     } else {
-      // 如果没有标记，重置为默认值
+      // 如果没有標記，重置為默認值
       overlayColor.value = '#646cff';
       overlayOpacity.value = 33;
       markText.value = '';
@@ -263,12 +263,12 @@ watch([() => props.isOpen, () => props.date, () => props.event], ([isOpen, date,
       isUpdatingFromProps = false;
     }, 0);
   } else if (isOpen && event) {
-    // 如果是事件详情弹窗，不重置日期标记状态
-    // 但可以在这里重置其他状态（如果需要）
+    // 如果是活動詳情彈窗，不重置日期標記狀態
+    // 但可以在這裡重置其他狀態（如果需要）
   }
 }, { immediate: true });
 
-// 监听props.dateMark变化，同步到本地状态（仅在弹窗打开时）
+// 監聽props.dateMark變化，同步到本地狀態（僅在彈窗打開時）
 watch(() => props.dateMark, (newMark, oldMark) => {
   if (!props.isOpen) return;
   isUpdatingFromProps = true;
@@ -276,14 +276,14 @@ watch(() => props.dateMark, (newMark, oldMark) => {
     overlayColor.value = newMark.overlayColor;
     overlayOpacity.value = newMark.overlayOpacity;
     markText.value = newMark.markText;
-    // 只有在选择了具体贴图时才更新 stickerGroup
-    // 如果用户正在切换组（selectedStickerIndex 为 null），保持用户当前选择的组
+    // 只有在選擇了具體貼圖時才更新 stickerGroup
+    // 如果用戶正在切換組（selectedStickerIndex 為 null），保持用戶當前選擇的組
     if (newMark.stickerIndex !== null) {
       selectedStickerGroup.value = newMark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
       selectedStickerIndex.value = newMark.stickerIndex;
     } else {
-      // 如果没有选择贴图，但用户正在切换组，保持用户的选择
-      // 只有在用户没有主动选择组时才使用 dateMark 的 stickerGroup
+      // 如果没有選擇貼圖，但用戶正在切換組，保持用戶的選擇
+      // 只有在用戶沒有主動選擇組時才使用 dateMark 的 stickerGroup
       if (selectedStickerIndex.value === null && (!oldMark || oldMark.stickerGroup === null)) {
         selectedStickerGroup.value = newMark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
       }
@@ -291,7 +291,7 @@ watch(() => props.dateMark, (newMark, oldMark) => {
     }
     updateOverlayStyle();
   } else if (props.date && !oldMark) {
-    // 只有在弹窗刚打开且没有旧标记时才重置为默认值
+    // 只有在彈窗剛打開且沒有舊標記時才重置為默認值
     overlayColor.value = '#646cff';
     overlayOpacity.value = 33;
     markText.value = '';
@@ -313,11 +313,11 @@ watch([overlayColor, overlayOpacity, markText, selectedStickerIndex], () => {
     overlayColor: overlayColor.value,
     overlayOpacity: overlayOpacity.value,
     markText: markText.value,
-    // 只有在选择了具体贴图时才保存 stickerGroup
+    // 只有在選擇了具體貼圖時才保存 stickerGroup
     stickerGroup: selectedStickerIndex.value ? selectedStickerGroup.value : (props.dateMark?.stickerGroup || null),
     stickerIndex: selectedStickerIndex.value
   };
-  // 只有当有内容时才保存标记
+  // 只有當有內容時才保存標記
   if (mark.markText || mark.stickerIndex !== null || mark.overlayOpacity > 0) {
     emit('updateDateMark', props.date, mark);
   } else {
@@ -325,12 +325,12 @@ watch([overlayColor, overlayOpacity, markText, selectedStickerIndex], () => {
   }
 });
 
-// 单独监听 selectedStickerGroup，只在选择了具体贴图时才更新
+// 單獨監聽 selectedStickerGroup，只在選擇了具體貼圖時才更新
 watch(selectedStickerGroup, (newGroup) => {
   if (isUpdatingFromProps || !props.date) {
     return;
   }
-  // 只有在选择了具体贴图时才更新 stickerGroup
+  // 只有在選擇了具體貼圖時才更新 stickerGroup
   if (selectedStickerIndex.value) {
     const mark: DateMark = {
       overlayColor: overlayColor.value,
@@ -347,11 +347,11 @@ watch(selectedStickerGroup, (newGroup) => {
 const eventTypeText = computed(() => {
   if (!props.event) return '';
   const types: Record<number, string> = {
-    0: '活动',
-    2: '任务',
-    3: '备忘',
-    4: '区间',
-    5: '习惯'
+    0: '活動',
+    2: '任務',
+    3: '備忘',
+    4: '區間',
+    5: '習慣'
   };
   return types[props.event.type] || '未知';
 });
@@ -389,7 +389,7 @@ const selectedSticker = computed(() => {
   return getStickerPath(selectedStickerIndex.value);
 });
 
-// 检查贴图是否被选中（考虑组别）
+// 檢查貼圖是否被選中（考慮組別）
 const isStickerSelected = (index: number): boolean => {
   return selectedStickerIndex.value === index && selectedStickerGroup.value === currentStickerGroup.value;
 };
@@ -399,10 +399,10 @@ const getStickerPath = (index: number): string => {
 };
 
 
-// 选择贴图组
+// 選擇貼圖組
 const selectStickerGroup = (groupId: string) => {
   selectedStickerGroup.value = groupId;
-  // 切换组时清除已选贴图
+  // 切換組時清除已選貼圖
   selectedStickerIndex.value = null;
 };
 
@@ -410,20 +410,20 @@ const selectStickerGroup = (groupId: string) => {
 const apngRefreshTimers = ref<Map<string, number>>(new Map());
 const apngImageRefs = ref<Map<string, HTMLImageElement>>(new Map());
 
-// 获取贴图图片src（支持APNG自动重播）
+// 獲取貼圖圖片src（支持APNG自動重播）
 const getStickerImageSrc = (path: string): string => {
-  // 检查是否是APNG文件
+  // 檢查是否是APNG文件
   const isApng = path.toLowerCase().endsWith('.apng');
   
   if (isApng) {
-    // 为APNG添加时间戳参数来触发重播
+    // 為APNG添加時間戳參數來觸發重播
     return `${path}?t=${Date.now()}`;
   }
   
   return path;
 };
 
-// 设置APNG图片引用和自动重播
+// 設置APNG圖片引用和自動重播
 const setApngImageRef = (el: HTMLImageElement | null, index: number) => {
   if (!el) return;
   
@@ -436,12 +436,12 @@ const setApngImageRef = (el: HTMLImageElement | null, index: number) => {
     const timerKey = `${selectedStickerGroup.value}-${index}`;
     apngImageRefs.value.set(timerKey, el);
     
-    // 清除旧的定时器
+    // 清除舊的定時器
     if (apngRefreshTimers.value.has(timerKey)) {
       window.clearInterval(apngRefreshTimers.value.get(timerKey)!);
     }
     
-    // 设置新的定时器，每3秒重播一次
+    // 設置新的定時器，每3秒重播一次
     const timer = window.setInterval(() => {
       const img = apngImageRefs.value.get(timerKey);
       if (img) {
@@ -466,7 +466,7 @@ const clearSticker = () => {
   selectedStickerIndex.value = null;
 };
 
-// 重置所有样式（清除遮罩、贴图、文字）
+// 重置所有樣式（清除遮罩、貼圖、文字）
 const resetStyle = () => {
   overlayColor.value = '#646cff';
   overlayOpacity.value = 33;
@@ -476,7 +476,7 @@ const resetStyle = () => {
   updateOverlayStyle();
 };
 
-// 清理APNG定时器
+// 清理APNG定時器
 onBeforeUnmount(() => {
   apngRefreshTimers.value.forEach((timer) => {
     window.clearInterval(timer);
@@ -505,10 +505,10 @@ const toggleBlur = () => {
 
 const handleClose = () => {
   emit('close');
-  // 不重置状态，保持用户设置的标记
+  // 不重置狀態，保持用戶設置的標記
 };
 
-// 初始化遮罩样式
+// 初始化遮罩樣式
 watch(() => props.isOpen, (open) => {
   if (open) {
     updateOverlayStyle();
@@ -617,7 +617,7 @@ updateOverlayStyle();
   gap: 1.5rem;
 }
 
-/* 预览区域 */
+/* 預覽區域 */
 .preview-section {
   margin-bottom: 1.5rem;
 }
@@ -631,7 +631,7 @@ updateOverlayStyle();
   letter-spacing: 0.5px;
 }
 
-/* 设置区域 */
+/* 設置區域 */
 .settings-section {
   display: flex;
   flex-direction: column;

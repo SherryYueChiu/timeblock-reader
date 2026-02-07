@@ -1,6 +1,6 @@
 <template>
   <div class="calendar-container">
-    <!-- 事件弹窗 -->
+    <!-- 活動彈窗 -->
     <EventModal
       :is-open="isModalOpen"
       :event="selectedEvent"
@@ -13,12 +13,12 @@
       @toggle-event-blur="toggleEventBlur"
       @update-date-mark="updateDateMark"
     />
-    <!-- 搜索弹窗 -->
+    <!-- 搜尋彈窗 -->
     <Teleport to="body">
       <div v-if="isSearchOpen" class="search-modal-overlay" @click.self="closeSearch">
       <div class="search-modal-container">
         <div class="search-modal-header">
-          <h2>搜索事件</h2>
+          <h2>搜尋活動</h2>
           <button class="search-modal-close" @click="closeSearch">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 6L6 18M6 6l12 12"/>
@@ -30,14 +30,14 @@
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="搜索事件标题、内容、地点..."
+              placeholder="搜尋活動標題、內容、地點..."
               class="search-input"
               @input="performSearch"
             />
           </div>
           <div v-if="searchResults.length > 0" class="search-results">
             <div class="search-results-header">
-              找到 {{ searchResults.length }} 个结果
+              找到 {{ searchResults.length }} 個結果
             </div>
             <div class="search-results-list">
               <div
@@ -61,10 +61,10 @@
             </div>
           </div>
           <div v-else-if="searchQuery && !isSearching" class="search-no-results">
-            没有找到匹配的事件
+            沒有找到匹配的活動
           </div>
           <div v-if="!searchQuery" class="search-placeholder">
-            输入关键词搜索事件
+            輸入關鍵詞搜尋活動
           </div>
         </div>
       </div>
@@ -72,13 +72,13 @@
     </Teleport>
     <div class="calendar-header">
       <div class="month-year-container">
-        <button class="nav-button prev-month" @click="prevMonth" title="上一个月">
+        <button class="nav-button prev-month" @click="prevMonth" title="上個月">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 18l-6-6 6-6"/>
           </svg>
         </button>
         <h1 class="month-year" @click="goToToday">{{ currentYear }}年{{ currentMonth }}月</h1>
-        <button class="nav-button next-month" @click="nextMonth" title="下一个月">
+        <button class="nav-button next-month" @click="nextMonth" title="下個月">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 18l6-6-6-6"/>
           </svg>
@@ -129,13 +129,13 @@
               v-if="getDateMark(day.fullDate)?.stickerIndex" 
               :ref="(el) => setCalendarApngRef(el as HTMLImageElement, formatDateKey(day.fullDate), getDateMark(day.fullDate)!.stickerGroup, getDateMark(day.fullDate)!.stickerIndex!)"
               :src="getStickerPath(getDateMark(day.fullDate)!.stickerGroup, getDateMark(day.fullDate)!.stickerIndex!)" 
-              alt="贴图" 
+              alt="貼圖" 
               class="date-mark-sticker" 
             />
           </div>
           <div class="day-number">{{ day.date }}</div>
           <div class="events">
-            <!-- 普通事件（活动0、备忘3）和其他类型 -->
+            <!-- 普通活動（活動0、備忘3）和其他類型 -->
             <div
               v-for="event in getDisplayedEvents(getRegularEvents(day.events))"
               :key="event._id"
@@ -151,7 +151,7 @@
               :title="event.title"
               @click.stop="handleEventClick(event, day.fullDate)"
             >
-              <!-- 任务(2)：圆角矩形checkbox -->
+              <!-- 任務(2)：圓角矩形checkbox -->
               <template v-if="event.type === 2">
                 <span 
                   class="checkbox checkbox-rounded-rect"
@@ -159,7 +159,7 @@
                 ></span>
                 <span class="event-text" :style="{ color: getColor(event.color) }">{{ event.title }}</span>
               </template>
-              <!-- 习惯(5)：圆形checkbox -->
+              <!-- 習慣(5)：圓形checkbox -->
               <template v-else-if="event.type === 5">
                 <span 
                   class="checkbox checkbox-circle"
@@ -167,7 +167,7 @@
                 ></span>
                 <span class="event-text" :style="{ color: getColor(event.color) }">{{ event.title }}</span>
               </template>
-              <!-- 其他类型：保持原样 -->
+              <!-- 其他類型：保持原樣 -->
               <template v-else>
                 {{ event.title }}
               </template>
@@ -179,7 +179,7 @@
               +{{ getRegularEvents(day.events).length - getMaxEvents() }}
             </div>
           </div>
-          <!-- 区间(4)：横跨多个日期的双向箭头线 -->
+          <!-- 區間(4)：橫跨多個日期的雙向箭頭線 -->
           <div
             v-for="interval in getIntervalEvents(day.events)"
             :key="interval._id"
@@ -258,39 +258,39 @@ const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
 const currentYear = computed(() => currentDate.value.getFullYear());
 const currentMonth = computed(() => currentDate.value.getMonth() + 1);
 
-// 弹窗状态
+// 彈窗狀態
 const isModalOpen = ref(false);
 const selectedEvent = ref<TimeBlock | null>(null);
 const selectedDate = ref<Date | null>(null);
 
-// 搜索状态
+// 搜尋狀態
 const isSearchOpen = ref(false);
 const searchQuery = ref('');
 const searchResults = ref<Array<{ event: TimeBlock; date: Date; dateStr: string }>>([]);
 const isSearching = ref(false);
 
-// 模糊状态：存储被模糊的日期和事件ID
+// 模糊狀態：儲存被模糊的日期和活動ID
 const blurredDates = ref<Set<string>>(new Set()); // 格式: "YYYY-MM-DD"
 const blurredEvents = ref<Set<number>>(new Set()); // 事件ID集合
 
-// 日期标记状态：存储每个日期的遮罩、文字、贴图
+// 日期標記狀態：儲存每個日期的遮罩、文字、貼圖
 const dateMarks = ref<Map<string, DateMark>>(new Map()); // key: "YYYY-MM-DD"
 
-// 打开搜索弹窗
+// 打開搜尋彈窗
 const handleSearch = () => {
   isSearchOpen.value = true;
   searchQuery.value = '';
   searchResults.value = [];
 };
 
-// 关闭搜索弹窗
+// 關閉搜尋彈窗
 const closeSearch = () => {
   isSearchOpen.value = false;
   searchQuery.value = '';
   searchResults.value = [];
 };
 
-// 执行搜索
+// 執行搜尋
 const performSearch = () => {
   const query = searchQuery.value.trim().toLowerCase();
   if (!query) {
@@ -301,19 +301,19 @@ const performSearch = () => {
   isSearching.value = true;
   const results: Array<{ event: TimeBlock; date: Date; dateStr: string }> = [];
 
-  // 搜索所有未删除的事件
+  // 搜尋所有未刪除的活動
   const validEvents = props.timeBlocks.filter(event => !event.dt_delete);
 
   for (const event of validEvents) {
-    // 搜索标题
+    // 搜尋標題
     const titleMatch = event.title?.toLowerCase().includes(query);
-    // 搜索描述
+    // 搜尋描述
     const descMatch = event.description?.toLowerCase().includes(query);
-    // 搜索地点
+    // 搜尋地點
     const locationMatch = event.location?.toLowerCase().includes(query);
 
     if (titleMatch || descMatch || locationMatch) {
-      // 获取事件的开始日期
+      // 獲取活動的開始日期
       const eventDate = timestampToDate(event.dt_start);
       const dateStr = formatEventDate(eventDate, event);
       
@@ -325,14 +325,14 @@ const performSearch = () => {
     }
   }
 
-  // 按日期排序（最新的在前）
+  // 按日期排序（最新的在前）- 最新的在前
   results.sort((a, b) => b.date.getTime() - a.date.getTime());
 
   searchResults.value = results;
   isSearching.value = false;
 };
 
-// 格式化事件日期显示
+// 格式化活動日期顯示
 const formatEventDate = (date: Date, event: TimeBlock): string => {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
@@ -349,55 +349,55 @@ const formatEventDate = (date: Date, event: TimeBlock): string => {
   }
 };
 
-// 获取事件类型文本
+// 獲取活動類型文本
 const getEventTypeText = (type: number): string => {
   const types: Record<number, string> = {
-    0: '活动',
-    2: '任务',
-    3: '备忘',
-    4: '区间',
-    5: '习惯'
+    0: '活動',
+    2: '任務',
+    3: '備忘',
+    4: '區間',
+    5: '習慣'
   };
   return types[type] || '未知';
 };
 
-// 跳转到事件
+// 跳轉到活動
 const goToEvent = (result: { event: TimeBlock; date: Date; dateStr: string }) => {
-  // 跳转到事件所在的月份
+  // 跳轉到活動所在的月份
   currentDate.value = new Date(result.date.getFullYear(), result.date.getMonth(), 1);
   
-  // 关闭搜索弹窗
+  // 關閉搜尋彈窗
   closeSearch();
   
-  // 打开事件详情弹窗
+  // 打開活動詳情彈窗
   selectedEvent.value = result.event;
   selectedDate.value = result.date;
   isModalOpen.value = true;
 };
 
-// 切换到上一个月
+// 切換到上個月
 const prevMonth = () => {
   const newDate = new Date(currentDate.value);
   newDate.setMonth(newDate.getMonth() - 1);
   currentDate.value = newDate;
 };
 
-// 切换到下一个月
+// 切換到下個月
 const nextMonth = () => {
   const newDate = new Date(currentDate.value);
   newDate.setMonth(newDate.getMonth() + 1);
   currentDate.value = newDate;
 };
 
-// 回到今天
+// 回到今天- 回到今天
 const goToToday = () => {
   currentDate.value = new Date();
 };
 
-// 处理事件点击
+// 處理活動點擊
 const handleEventClick = (event: TimeBlock, dayDate?: Date) => {
   selectedEvent.value = event;
-  // 如果有传入日期，使用传入的日期；否则从事件时间戳获取
+  // 如果有傳入日期，使用傳入的日期；否則從活動時間戳獲取
   if (dayDate) {
     selectedDate.value = dayDate;
   } else {
@@ -406,7 +406,7 @@ const handleEventClick = (event: TimeBlock, dayDate?: Date) => {
   isModalOpen.value = true;
 };
 
-// 处理日期格子点击（空白处）
+// 處理日期格子點擊（空白處）
 const handleDayClick = (day: { fullDate: Date; events: TimeBlock[] }) => {
   // 所有日期都可以点击打开弹窗
   selectedEvent.value = null;
@@ -414,7 +414,7 @@ const handleDayClick = (day: { fullDate: Date; events: TimeBlock[] }) => {
   isModalOpen.value = true;
 };
 
-// 格式化日期为 YYYY-MM-DD
+// 格式化日期為 YYYY-MM-DD
 const formatDateKey = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -422,7 +422,7 @@ const formatDateKey = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-// 切换日期模糊状态
+// 切換日期模糊狀態
 const toggleDateBlur = (date: Date | null) => {
   if (!date) return;
   const dateKey = formatDateKey(date);
@@ -433,7 +433,7 @@ const toggleDateBlur = (date: Date | null) => {
   }
 };
 
-// 切换事件模糊状态
+// 切換活動模糊狀態
 const toggleEventBlur = (eventId: number) => {
   if (blurredEvents.value.has(eventId)) {
     blurredEvents.value.delete(eventId);
@@ -442,29 +442,29 @@ const toggleEventBlur = (eventId: number) => {
   }
 };
 
-// 检查日期是否被模糊
+// 檢查日期是否被模糊
 const isDateBlurred = (date: Date): boolean => {
   const dateKey = formatDateKey(date);
   return blurredDates.value.has(dateKey);
 };
 
-// 检查事件是否被模糊（考虑日期模糊和事件单独模糊）
+// 檢查活動是否被模糊（考慮日期模糊和活動單獨模糊）
 const isEventBlurred = (eventId: number, date: Date): boolean => {
-  // 如果事件被单独模糊，直接返回true
+  // 如果活動被單獨模糊，直接返回true
   if (blurredEvents.value.has(eventId)) {
     return true;
   }
-  // 如果事件没有被单独模糊，检查日期是否被模糊
+  // 如果活動沒有被單獨模糊，檢查日期是否被模糊
   return isDateBlurred(date);
 };
 
-// 获取日期标记
+// 獲取日期標記
 const getDateMark = (date: Date): DateMark | null => {
   const dateKey = formatDateKey(date);
   return dateMarks.value.get(dateKey) || null;
 };
 
-// 更新日期标记
+// 更新日期標記
 const updateDateMark = (date: Date | null, mark: DateMark | null) => {
   if (!date) return;
   const dateKey = formatDateKey(date);
@@ -475,7 +475,7 @@ const updateDateMark = (date: Date | null, mark: DateMark | null) => {
   }
 };
 
-// 获取标记遮罩样式
+// 獲取標記遮罩樣式
 const getMarkOverlayStyle = (date: Date): Record<string, string> => {
   const mark = getDateMark(date);
   if (!mark) return {};
@@ -490,15 +490,15 @@ const getMarkOverlayStyle = (date: Date): Record<string, string> => {
   };
 };
 
-// APNG重播管理（用于日历上的贴图）
+// APNG重播管理（用於日曆上的貼圖）
 const calendarApngTimers = ref<Map<string, number>>(new Map());
 const calendarApngRefs = ref<Map<string, HTMLImageElement>>(new Map());
 
-// 获取贴图路径
+// 獲取貼圖路徑
 const getStickerPath = (stickerGroup: string | null, index: number): string => {
   const group = stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
   const path = `/stickers/${group}/${index}.png`;
-  // 检查是否是APNG文件
+  // 檢查是否是APNG文件
   const isApng = path.toLowerCase().endsWith('.apng');
   if (isApng) {
     return `${path}?t=${Date.now()}`;
@@ -506,7 +506,7 @@ const getStickerPath = (stickerGroup: string | null, index: number): string => {
   return path;
 };
 
-// 设置日历上APNG图片的引用和自动重播
+// 設置日曆上APNG圖片的引用和自動重播
 const setCalendarApngRef = (el: HTMLImageElement | null, dateKey: string, stickerGroup: string | null, index: number) => {
   if (!el) return;
   
@@ -518,12 +518,12 @@ const setCalendarApngRef = (el: HTMLImageElement | null, dateKey: string, sticke
     const timerKey = `${dateKey}-${group}-${index}`;
     calendarApngRefs.value.set(timerKey, el);
     
-    // 清除旧的定时器
+    // 清除舊的定時器
     if (calendarApngTimers.value.has(timerKey)) {
       window.clearInterval(calendarApngTimers.value.get(timerKey)!);
     }
     
-    // 设置新的定时器，每3秒重播一次
+    // 設置新的定時器，每3秒重播一次
     const timer = window.setInterval(() => {
       const img = calendarApngRefs.value.get(timerKey);
       if (img) {
@@ -536,7 +536,7 @@ const setCalendarApngRef = (el: HTMLImageElement | null, dateKey: string, sticke
   }
 };
 
-// 清理日历APNG定时器
+// 清理日曆APNG定時器
 onBeforeUnmount(() => {
   calendarApngTimers.value.forEach((timer) => {
     window.clearInterval(timer);
@@ -545,10 +545,10 @@ onBeforeUnmount(() => {
   calendarApngRefs.value.clear();
 });
 
-// 关闭弹窗
+// 關閉彈窗
 const closeModal = () => {
   isModalOpen.value = false;
-  // 延迟重置，等待动画完成
+  // 延遲重置，等待動畫完成
   setTimeout(() => {
     selectedEvent.value = null;
     selectedDate.value = null;
@@ -560,7 +560,7 @@ const timestampToDate = (timestamp: number): Date => {
   return new Date(timestamp);
 };
 
-// 格式化日期为 YYYY-MM-DD
+// 格式化日期為 YYYY-MM-DD
 const formatDate = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -568,7 +568,7 @@ const formatDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-// 獲取全天事件的實際結束日期（處理時區問題）
+// 獲取全天活動的實際結束日期（處理時區問題）
 const getActualEndDate = (event: TimeBlock): Date => {
   const eventStart = timestampToDate(event.dt_start);
   const eventEnd = timestampToDate(event.dt_end);
