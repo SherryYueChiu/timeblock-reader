@@ -70,6 +70,7 @@
             </div>
             <img 
               v-if="getDateMark(day.fullDate)?.stickerIndex" 
+              :ref="(el) => setCalendarApngRef(el as HTMLImageElement, formatDateKey(day.fullDate), getDateMark(day.fullDate)!.stickerGroup, getDateMark(day.fullDate)!.stickerIndex!)"
               :src="getStickerPath(getDateMark(day.fullDate)!.stickerGroup, getDateMark(day.fullDate)!.stickerIndex!)" 
               alt="贴图" 
               class="date-mark-sticker" 
@@ -185,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
 import EventModal from './EventModal.vue';
 import type { DateMark } from './EventModal.vue';
@@ -331,11 +332,60 @@ const getMarkOverlayStyle = (date: Date): Record<string, string> => {
   };
 };
 
+// APNG重播管理（用于日历上的贴图）
+const calendarApngTimers = ref<Map<string, number>>(new Map());
+const calendarApngRefs = ref<Map<string, HTMLImageElement>>(new Map());
+
 // 获取贴图路径
 const getStickerPath = (stickerGroup: string | null, index: number): string => {
   const group = stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
-  return `/stickers/${group}/${index}.png`;
+  const path = `/stickers/${group}/${index}.png`;
+  // 检查是否是APNG文件
+  const isApng = path.toLowerCase().endsWith('.apng');
+  if (isApng) {
+    return `${path}?t=${Date.now()}`;
+  }
+  return path;
 };
+
+// 设置日历上APNG图片的引用和自动重播
+const setCalendarApngRef = (el: HTMLImageElement | null, dateKey: string, stickerGroup: string | null, index: number) => {
+  if (!el) return;
+  
+  const group = stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
+  const path = `/stickers/${group}/${index}.png`;
+  const isApng = path.toLowerCase().endsWith('.apng');
+  
+  if (isApng) {
+    const timerKey = `${dateKey}-${group}-${index}`;
+    calendarApngRefs.value.set(timerKey, el);
+    
+    // 清除旧的定时器
+    if (calendarApngTimers.value.has(timerKey)) {
+      window.clearInterval(calendarApngTimers.value.get(timerKey)!);
+    }
+    
+    // 设置新的定时器，每3秒重播一次
+    const timer = window.setInterval(() => {
+      const img = calendarApngRefs.value.get(timerKey);
+      if (img) {
+        const currentSrc = img.src.split('?')[0];
+        img.src = `${currentSrc}?t=${Date.now()}`;
+      }
+    }, 3000) as unknown as number;
+    
+    calendarApngTimers.value.set(timerKey, timer);
+  }
+};
+
+// 清理日历APNG定时器
+onBeforeUnmount(() => {
+  calendarApngTimers.value.forEach((timer) => {
+    window.clearInterval(timer);
+  });
+  calendarApngTimers.value.clear();
+  calendarApngRefs.value.clear();
+});
 
 // 关闭弹窗
 const closeModal = () => {

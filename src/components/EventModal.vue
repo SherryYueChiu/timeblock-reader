@@ -101,7 +101,7 @@
                     v-for="group in stickerGroups"
                     :key="group.id"
                     class="sticker-group-btn"
-                    :class="{ active: selectedStickerGroup === group.id }"
+                    :class="{ active: selectedStickerGroup.value === group.id }"
                     @click="selectStickerGroup(group.id)"
                   >
                     {{ group.name }}
@@ -109,13 +109,19 @@
                 </div>
                 <div class="sticker-selector">
                   <button 
-                    v-for="i in 40" 
-                    :key="i"
+                    v-for="(path, index) in stickerPaths" 
+                    :key="`${selectedStickerGroup}-${index + 1}`"
                     class="sticker-btn"
-                    :class="{ active: isStickerSelected(i) }"
-                    @click="selectSticker(i)"
+                    :class="{ active: isStickerSelected(index + 1) }"
+                    @click="selectSticker(index + 1)"
                   >
-                    <img :src="getStickerPath(i)" :alt="`贴图 ${i}`" />
+                    <img 
+                      :ref="(el) => setApngImageRef(el as HTMLImageElement, index + 1)"
+                      :src="getStickerImageSrc(path, index + 1)" 
+                      :alt="`贴图 ${index + 1}`"
+                      :key="`img-${selectedStickerGroup}-${index + 1}`"
+                      class="sticker-image"
+                    />
                   </button>
                 </div>
                 <button v-if="selectedSticker" @click="clearSticker" class="clear-sticker-btn">清除贴图</button>
@@ -142,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
 
 export interface DateMark {
@@ -197,6 +203,15 @@ const stickerGroups = [
 
 const currentStickerGroup = computed(() => selectedStickerGroup.value);
 
+// 生成当前组的贴图路径数组（确保响应式更新）
+const stickerPaths = computed(() => {
+  const paths: string[] = [];
+  for (let i = 1; i <= 40; i++) {
+    paths.push(`/stickers/${selectedStickerGroup.value}/${i}.png`);
+  }
+  return paths;
+});
+
 // 莫兰迪配色常用颜色
 const morandiColors = [
   { name: '灰蓝', value: '#9BA8B8' },
@@ -217,7 +232,6 @@ const morandiColors = [
 const selectMorandiColor = (color: string) => {
   overlayColor.value = color;
   updateOverlayStyle();
-};
 
 // 监听本地状态变化，同步到父组件
 let isUpdatingFromProps = false;
@@ -254,18 +268,29 @@ watch([() => props.isOpen, () => props.date, () => props.event], ([isOpen, date,
 }, { immediate: true });
 
 // 监听props.dateMark变化，同步到本地状态（仅在弹窗打开时）
-watch(() => props.dateMark, (newMark) => {
+watch(() => props.dateMark, (newMark, oldMark) => {
   if (!props.isOpen) return;
   isUpdatingFromProps = true;
   if (newMark) {
     overlayColor.value = newMark.overlayColor;
     overlayOpacity.value = newMark.overlayOpacity;
     markText.value = newMark.markText;
-    selectedStickerGroup.value = newMark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
-    selectedStickerIndex.value = newMark.stickerIndex;
+    // 只有在选择了具体贴图时才更新 stickerGroup
+    // 如果用户正在切换组（selectedStickerIndex 为 null），保持用户当前选择的组
+    if (newMark.stickerIndex !== null) {
+      selectedStickerGroup.value = newMark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
+      selectedStickerIndex.value = newMark.stickerIndex;
+    } else {
+      // 如果没有选择贴图，但用户正在切换组，保持用户的选择
+      // 只有在用户没有主动选择组时才使用 dateMark 的 stickerGroup
+      if (selectedStickerIndex.value === null && (!oldMark || oldMark.stickerGroup === null)) {
+        selectedStickerGroup.value = newMark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
+      }
+      selectedStickerIndex.value = null;
+    }
     updateOverlayStyle();
-  } else if (props.date) {
-    // 如果没有标记，重置为默认值
+  } else if (props.date && !oldMark) {
+    // 只有在弹窗刚打开且没有旧标记时才重置为默认值
     overlayColor.value = '#646cff';
     overlayOpacity.value = 33;
     markText.value = '';
@@ -278,14 +303,17 @@ watch(() => props.dateMark, (newMark) => {
   }, 0);
 });
 
-watch([overlayColor, overlayOpacity, markText, selectedStickerIndex, selectedStickerGroup], () => {
-  if (isUpdatingFromProps || !props.date) return;
+watch([overlayColor, overlayOpacity, markText, selectedStickerIndex], () => {
+  if (isUpdatingFromProps || !props.date) {
+    return;
+  }
   
   const mark: DateMark = {
     overlayColor: overlayColor.value,
     overlayOpacity: overlayOpacity.value,
     markText: markText.value,
-    stickerGroup: selectedStickerIndex.value ? selectedStickerGroup.value : null,
+    // 只有在选择了具体贴图时才保存 stickerGroup
+    stickerGroup: selectedStickerIndex.value ? selectedStickerGroup.value : (props.dateMark?.stickerGroup || null),
     stickerIndex: selectedStickerIndex.value
   };
   // 只有当有内容时才保存标记
@@ -293,6 +321,24 @@ watch([overlayColor, overlayOpacity, markText, selectedStickerIndex, selectedSti
     emit('updateDateMark', props.date, mark);
   } else {
     emit('updateDateMark', props.date, null);
+  }
+});
+
+// 单独监听 selectedStickerGroup，只在选择了具体贴图时才更新
+watch(selectedStickerGroup, (newGroup) => {
+  if (isUpdatingFromProps || !props.date) {
+    return;
+  }
+  // 只有在选择了具体贴图时才更新 stickerGroup
+  if (selectedStickerIndex.value) {
+    const mark: DateMark = {
+      overlayColor: overlayColor.value,
+      overlayOpacity: overlayOpacity.value,
+      markText: markText.value,
+      stickerGroup: newGroup,
+      stickerIndex: selectedStickerIndex.value
+    };
+    emit('updateDateMark', props.date, mark);
   }
 });
 
@@ -351,11 +397,63 @@ const getStickerPath = (index: number): string => {
   return `/stickers/${selectedStickerGroup.value}/${index}.png`;
 };
 
+// 获取贴图路径（用于模板中的响应式更新）
+const getStickerPathForIndex = (index: number) => {
+  const path = `/stickers/${selectedStickerGroup.value}/${index}.png`;
+  return path;
+};
+
 // 选择贴图组
 const selectStickerGroup = (groupId: string) => {
   selectedStickerGroup.value = groupId;
   // 切换组时清除已选贴图
   selectedStickerIndex.value = null;
+};
+
+// APNG重播管理
+const apngRefreshTimers = ref<Map<string, number>>(new Map());
+const apngImageRefs = ref<Map<string, HTMLImageElement>>(new Map());
+
+// 获取贴图图片src（支持APNG自动重播）
+const getStickerImageSrc = (path: string, index: number): string => {
+  // 检查是否是APNG文件
+  const isApng = path.toLowerCase().endsWith('.apng');
+  
+  if (isApng) {
+    // 为APNG添加时间戳参数来触发重播
+    return `${path}?t=${Date.now()}`;
+  }
+  
+  return path;
+};
+
+// 设置APNG图片引用和自动重播
+const setApngImageRef = (el: HTMLImageElement | null, index: number) => {
+  if (!el) return;
+  
+  const path = stickerPaths.value[index - 1];
+  const isApng = path.toLowerCase().endsWith('.apng');
+  
+  if (isApng) {
+    const timerKey = `${selectedStickerGroup.value}-${index}`;
+    apngImageRefs.value.set(timerKey, el);
+    
+    // 清除旧的定时器
+    if (apngRefreshTimers.value.has(timerKey)) {
+      window.clearInterval(apngRefreshTimers.value.get(timerKey)!);
+    }
+    
+    // 设置新的定时器，每3秒重播一次
+    const timer = window.setInterval(() => {
+      const img = apngImageRefs.value.get(timerKey);
+      if (img) {
+        const currentSrc = img.src.split('?')[0];
+        img.src = `${currentSrc}?t=${Date.now()}`;
+      }
+    }, 3000) as unknown as number;
+    
+    apngRefreshTimers.value.set(timerKey, timer);
+  }
 };
 
 const selectSticker = (index: number) => {
@@ -378,7 +476,16 @@ const resetStyle = () => {
   selectedStickerGroup.value = 'ㄇㄚˊ幾兔－表情貼';
   selectedStickerIndex.value = null;
   updateOverlayStyle();
-};
+});
+
+// 清理APNG定时器
+onBeforeUnmount(() => {
+  apngRefreshTimers.value.forEach((timer) => {
+    window.clearInterval(timer);
+  });
+  apngRefreshTimers.value.clear();
+  apngImageRefs.value.clear();
+});
 
 const updateOverlayStyle = () => {
   const opacity = overlayOpacity.value / 100;
