@@ -1,4 +1,4 @@
-import initSqlJs, { Database } from 'sql.js';
+import initSqlJs from 'sql.js';
 
 export interface TimeBlock {
   _id: number;
@@ -48,8 +48,12 @@ export async function readDatabase(file: File): Promise<TimeBlock[]> {
     }
 
     // 获取列名
-    const columns = result[0].columns;
-    const values = result[0].values;
+    const columns = result[0]?.columns;
+    const values = result[0]?.values;
+    
+    if (!columns || !values) {
+      return [];
+    }
 
     // 转换为对象数组
     const timeBlocks: TimeBlock[] = values.map((row: any[]) => {

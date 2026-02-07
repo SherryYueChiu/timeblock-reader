@@ -101,7 +101,7 @@
                     v-for="group in stickerGroups"
                     :key="group.id"
                     class="sticker-group-btn"
-                    :class="{ active: selectedStickerGroup.value === group.id }"
+                    :class="{ active: selectedStickerGroup === group.id }"
                     @click="selectStickerGroup(group.id)"
                   >
                     {{ group.name }}
@@ -117,7 +117,7 @@
                   >
                     <img 
                       :ref="(el) => setApngImageRef(el as HTMLImageElement, index + 1)"
-                      :src="getStickerImageSrc(path, index + 1)" 
+                      :src="getStickerImageSrc(path)" 
                       :alt="`贴图 ${index + 1}`"
                       :key="`img-${selectedStickerGroup}-${index + 1}`"
                       class="sticker-image"
@@ -183,7 +183,7 @@ const isBlurred = computed({
     }
     return props.isDateBlurred || false;
   },
-  set: (value: boolean) => {
+  set: (_value: boolean) => {
     // 这个setter不会被直接使用，但保留以支持v-model
   }
 });
@@ -398,11 +398,6 @@ const getStickerPath = (index: number): string => {
   return `/stickers/${selectedStickerGroup.value}/${index}.png`;
 };
 
-// 获取贴图路径（用于模板中的响应式更新）
-const getStickerPathForIndex = (index: number) => {
-  const path = `/stickers/${selectedStickerGroup.value}/${index}.png`;
-  return path;
-};
 
 // 选择贴图组
 const selectStickerGroup = (groupId: string) => {
@@ -416,7 +411,7 @@ const apngRefreshTimers = ref<Map<string, number>>(new Map());
 const apngImageRefs = ref<Map<string, HTMLImageElement>>(new Map());
 
 // 获取贴图图片src（支持APNG自动重播）
-const getStickerImageSrc = (path: string, index: number): string => {
+const getStickerImageSrc = (path: string): string => {
   // 检查是否是APNG文件
   const isApng = path.toLowerCase().endsWith('.apng');
   
@@ -433,6 +428,8 @@ const setApngImageRef = (el: HTMLImageElement | null, index: number) => {
   if (!el) return;
   
   const path = stickerPaths.value[index - 1];
+  if (!path) return;
+  
   const isApng = path.toLowerCase().endsWith('.apng');
   
   if (isApng) {
