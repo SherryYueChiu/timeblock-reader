@@ -1523,7 +1523,7 @@ if (import.meta.env.DEV) {
   max-width: 100%;
   font-weight: 500;
   line-height: 1.2;
-  padding-left: 10px;
+  padding-left: 1.5rem;
 }
 
 .interval-arrow-line {
@@ -1543,11 +1543,11 @@ if (import.meta.env.DEV) {
 }
 
 .interval-start .interval-line-bar {
-  margin-left: 10px;
+  margin-left: 1rem;
 }
 
 .interval-end .interval-line-bar {
-  margin-right: 0.5rem;
+  margin-right: 2rem;
 }
 
 .interval-middle .interval-line-bar {
@@ -1567,11 +1567,11 @@ if (import.meta.env.DEV) {
 }
 
 .interval-arrow-left {
-  left: 0;
+  left: 1rem;
 }
 
 .interval-arrow-right {
-  right: 0.5rem;
+  right: 2rem;
 }
 
 .interval-start .interval-arrow-line {
