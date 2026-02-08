@@ -63,9 +63,31 @@
                 </button>
               </div>
             </div>
-            <div class="detail-item" v-if="event.description">
+            <div class="detail-item">
               <span class="detail-label">內容：</span>
-              <span class="detail-value">{{ event.description }}</span>
+              <div class="detail-value-wrapper">
+                <span v-if="!isEditingDescription" class="detail-value">{{ event.description || '無' }}</span>
+                <textarea 
+                  v-else
+                  v-model="editingDescription"
+                  @blur="saveDescription"
+                  @keyup.ctrl.enter="saveDescription"
+                  @keyup.esc="cancelEditDescription"
+                  class="detail-value-input detail-value-textarea"
+                  ref="descriptionInputRef"
+                  rows="2"
+                ></textarea>
+                <button 
+                  class="edit-detail-btn"
+                  @click="startEditDescription"
+                  title="編輯內容"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="detail-item">
               <span class="detail-label">地點：</span>
@@ -217,6 +239,7 @@ const emit = defineEmits<{
   toggleEventBlur: [eventId: number];
   updateDateMark: [date: Date | null, mark: DateMark | null];
   updateEventTitle: [eventId: number, newTitle: string];
+  updateEventDescription: [eventId: number, newDescription: string];
 }>();
 
 // 使用props傳入的模糊狀態
@@ -245,6 +268,11 @@ const editingTitle = ref('');
 const editingDetailTitle = ref('');
 const titleInputRef = ref<HTMLInputElement | null>(null);
 const detailTitleInputRef = ref<HTMLInputElement | null>(null);
+
+// 描述编辑状态
+const isEditingDescription = ref(false);
+const editingDescription = ref('');
+const descriptionInputRef = ref<HTMLTextAreaElement | null>(null);
 
 // 貼圖組配置
 const stickerGroups = [
@@ -635,10 +663,42 @@ const cancelEditDetailTitle = () => {
   editingDetailTitle.value = '';
 };
 
+// 开始编辑描述
+const startEditDescription = () => {
+  if (!props.event) return;
+  editingDescription.value = props.event.description || '';
+  isEditingDescription.value = true;
+  nextTick(() => {
+    descriptionInputRef.value?.focus();
+    descriptionInputRef.value?.select();
+  });
+};
+
+// 保存描述
+const saveDescription = () => {
+  if (!props.event) return;
+  const trimmedDescription = editingDescription.value.trim();
+  if (trimmedDescription !== (props.event.description || '')) {
+    emit('updateEventDescription', props.event._id, trimmedDescription);
+    // 直接更新本地事件对象
+    if (props.event) {
+      props.event.description = trimmedDescription;
+    }
+  }
+  isEditingDescription.value = false;
+};
+
+// 取消编辑描述
+const cancelEditDescription = () => {
+  isEditingDescription.value = false;
+  editingDescription.value = '';
+};
+
 const handleClose = () => {
   // 取消编辑状态
   isEditingTitle.value = false;
   isEditingDetailTitle.value = false;
+  isEditingDescription.value = false;
   emit('close');
   // 不重置狀態，保持用戶設置的標記
 };
@@ -726,7 +786,7 @@ updateOverlayStyle();
 
 .title-input {
   flex: 1;
-  padding: 0.5rem;
+  padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
   background-color: rgba(255, 255, 255, 0.05);
@@ -735,12 +795,19 @@ updateOverlayStyle();
   font-weight: 600;
   font-family: inherit;
   min-width: 0;
+  height: auto;
+  line-height: 1.4;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+  background-color: transparent;
+  padding-bottom: 0.25rem;
 }
 
 .title-input:focus {
   outline: none;
-  border-color: rgba(100, 108, 255, 0.5);
-  background-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(100, 108, 255, 0.5);
+  background-color: transparent;
 }
 
 .modal-close {
@@ -794,6 +861,14 @@ updateOverlayStyle();
   min-width: 0;
 }
 
+.detail-value-wrapper:has(.detail-value-textarea) {
+  align-items: flex-start;
+}
+
+.detail-value-wrapper:has(.detail-value-textarea) .edit-detail-btn {
+  margin-top: 0.125rem;
+}
+
 .detail-value {
   flex: 1;
   color: rgba(255, 255, 255, 0.87);
@@ -809,13 +884,15 @@ updateOverlayStyle();
   border: none;
   color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0.125rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  height: fit-content;
+  align-self: flex-start;
 }
 
 .edit-detail-btn:hover {
@@ -825,20 +902,45 @@ updateOverlayStyle();
 
 .detail-value-input {
   flex: 1;
-  padding: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.05);
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+  background-color: transparent;
   color: rgba(255, 255, 255, 0.87);
   font-size: inherit;
   font-family: inherit;
   min-width: 0;
+  height: auto;
+  line-height: 1.5;
+  padding-bottom: 0.25rem;
 }
 
 .detail-value-input:focus {
   outline: none;
-  border-color: rgba(100, 108, 255, 0.5);
-  background-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(100, 108, 255, 0.5);
+  background-color: transparent;
+}
+
+.detail-value-textarea {
+  resize: vertical;
+  min-height: auto;
+  max-height: 200px;
+  font-family: inherit;
+  line-height: 1.5;
+  padding: 0;
+  padding-bottom: 0.25rem;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+  background-color: transparent;
+  height: auto;
+}
+
+.detail-value-textarea:focus {
+  outline: none;
+  border-bottom-color: rgba(100, 108, 255, 0.5);
+  background-color: transparent;
 }
 
 .date-mark {

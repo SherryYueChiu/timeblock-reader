@@ -13,6 +13,7 @@
       @toggle-event-blur="toggleEventBlur"
       @update-date-mark="updateDateMark"
       @update-event-title="updateEventTitle"
+      @update-event-description="updateEventDescription"
     />
     <!-- 搜尋彈窗 -->
     <Teleport to="body">
@@ -85,22 +86,41 @@
           </svg>
         </button>
       </div>
-      <button class="search-button" @click="handleSearch">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.35-4.35"></path>
-        </svg>
-      </button>
+      <div class="header-actions">
+        <button class="share-button" @click="handleShare" title="分享本月">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+            <polyline points="16 6 12 2 8 6"></polyline>
+            <line x1="12" y1="2" x2="12" y2="15"></line>
+          </svg>
+        </button>
+        <button class="search-button" @click="handleSearch">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+        </button>
+      </div>
     </div>
     <div class="calendar-grid">
       <div class="weekday-header">
@@ -258,12 +278,23 @@ import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
 import EventModal from './EventModal.vue';
 import type { DateMark } from './EventModal.vue';
+import { generateShareUrl } from '../utils/shareEncoder';
 
 const props = defineProps<{
   timeBlocks: TimeBlock[];
+  initialYear?: number | null;
+  initialMonth?: number | null;
 }>();
 
-const currentDate = ref(new Date());
+// 初始化当前日期，如果有URL参数则使用参数值
+const getInitialDate = (): Date => {
+  if (props.initialYear && props.initialMonth) {
+    return new Date(props.initialYear, props.initialMonth - 1, 1);
+  }
+  return new Date();
+};
+
+const currentDate = ref<Date>(getInitialDate());
 const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
 
 const currentYear = computed(() => currentDate.value.getFullYear());
@@ -299,6 +330,32 @@ const closeSearch = () => {
   isSearchOpen.value = false;
   searchQuery.value = '';
   searchResults.value = [];
+};
+
+// 分享本月日曆
+const handleShare = () => {
+  const year = currentYear.value;
+  const month = currentMonth.value;
+  
+  try {
+    const shareUrl = generateShareUrl(props.timeBlocks, year, month);
+    
+    // 复制到剪贴板
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      alert(`分享連結已複製到剪貼板！\n\n連結：${shareUrl}\n\n您可以分享此連結給他人，他們打開後即可直接查看 ${year}年${month}月 的日曆。`);
+    }).catch(() => {
+      // 如果复制失败，显示链接让用户手动复制
+      const userConfirmed = confirm(
+        `分享連結已生成！\n\n${shareUrl}\n\n請手動複製此連結。\n\n點擊"確定"在新視窗打開連結預覽。`
+      );
+      if (userConfirmed) {
+        window.open(shareUrl, '_blank');
+      }
+    });
+  } catch (error) {
+    console.error('生成分享連結失敗:', error);
+    alert('生成分享連結失敗，請稍後重試。');
+  }
 };
 
 // 執行搜尋
@@ -391,6 +448,14 @@ const updateEventTitle = (eventId: number, newTitle: string) => {
   const event = props.timeBlocks.find(e => e._id === eventId);
   if (event) {
     event.title = newTitle;
+  }
+};
+
+// 更新活動描述
+const updateEventDescription = (eventId: number, newDescription: string) => {
+  const event = props.timeBlocks.find(e => e._id === eventId);
+  if (event) {
+    event.description = newDescription;
   }
 };
 
@@ -1046,6 +1111,14 @@ if (import.meta.env.DEV) {
   height: 100%;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.share-button,
 .search-button {
   display: flex;
   align-items: center;
@@ -1063,16 +1136,19 @@ if (import.meta.env.DEV) {
   -webkit-tap-highlight-color: transparent;
 }
 
+.share-button:hover,
 .search-button:hover {
   background-color: rgba(100, 108, 255, 0.1);
   border-color: rgba(100, 108, 255, 1);
 }
 
+.share-button:active,
 .search-button:active {
   background-color: rgba(100, 108, 255, 0.2);
   transform: scale(0.95);
 }
 
+.share-button svg,
 .search-button svg {
   width: 24px;
   height: 24px;
@@ -1621,11 +1697,17 @@ if (import.meta.env.DEV) {
     padding: 0.4rem;
   }
 
+  .header-actions {
+    gap: 0.4rem;
+  }
+
+  .share-button,
   .search-button {
     width: 44px;
     height: 44px;
   }
 
+  .share-button svg,
   .search-button svg {
     width: 20px;
     height: 20px;
@@ -1748,12 +1830,14 @@ if (import.meta.env.DEV) {
     font-size: 1.25rem;
   }
 
+  .share-button,
   .search-button {
     width: 40px;
     height: 40px;
     border-width: 1.5px;
   }
 
+  .share-button svg,
   .search-button svg {
     width: 18px;
     height: 18px;

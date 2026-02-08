@@ -57,7 +57,7 @@ const handleFileChange = async (event: Event) => {
   }
 
   if (!file.name.endsWith('.db')) {
-    error.value = '請選擇 .db 檔案';
+    error.value = '上傳 .db 檔案';
     return;
   }
 
