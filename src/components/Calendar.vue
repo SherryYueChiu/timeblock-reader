@@ -12,6 +12,7 @@
       @toggle-date-blur="toggleDateBlur"
       @toggle-event-blur="toggleEventBlur"
       @update-date-mark="updateDateMark"
+      @update-event-title="updateEventTitle"
     />
     <!-- 搜尋彈窗 -->
     <Teleport to="body">
@@ -155,8 +156,18 @@
               <template v-if="event.type === 2">
                 <span 
                   class="checkbox checkbox-rounded-rect"
-                  :style="{ borderColor: getColorForCheckbox(event.color) }"
-                ></span>
+                  :class="{ 'checkbox-checked': event.dt_done && event.dt_done !== 0 }"
+                  :style="event.dt_done && event.dt_done !== 0 
+                    ? { 
+                        borderColor: getColor(event.color), 
+                        backgroundColor: getColor(event.color) 
+                      }
+                    : { borderColor: getColorForCheckbox(event.color) }"
+                >
+                  <svg v-if="event.dt_done && event.dt_done !== 0" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                </span>
                 <span class="event-text" :style="{ color: getColor(event.color) }">{{ event.title }}</span>
               </template>
               <!-- 習慣(5)：圓形checkbox -->
@@ -373,6 +384,14 @@ const goToEvent = (result: { event: TimeBlock; date: Date; dateStr: string }) =>
   selectedEvent.value = result.event;
   selectedDate.value = result.date;
   isModalOpen.value = true;
+};
+
+// 更新活動標題
+const updateEventTitle = (eventId: number, newTitle: string) => {
+  const event = props.timeBlocks.find(e => e._id === eventId);
+  if (event) {
+    event.title = newTitle;
+  }
 };
 
 // 切換到上個月
@@ -1437,7 +1456,9 @@ if (import.meta.env.DEV) {
 /* Checkbox样式 */
 .checkbox {
   flex-shrink: 0;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 2px solid rgba(255, 255, 255, 0.6);
   background-color: transparent;
   transition: all 0.2s ease;
@@ -1448,6 +1469,12 @@ if (import.meta.env.DEV) {
   width: 14px;
   height: 14px;
   border-radius: 3px;
+}
+
+/* 打勾状态的checkbox - 样式通过内联style设置，保持事件颜色 */
+.checkbox-checked svg {
+  color: white;
+  stroke: white;
 }
 
 /* 圆形checkbox（习惯） */

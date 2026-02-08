@@ -4,8 +4,30 @@
       <div v-if="isOpen" class="modal-overlay" @click.self="handleClose">
         <div class="modal-container">
           <div class="modal-header">
-            <h2 v-if="event">{{ event.title }}</h2>
-            <h2 v-else>日期標記</h2>
+            <div class="header-title-wrapper">
+              <h2 v-if="event && !isEditingTitle">{{ event.title }}</h2>
+              <input 
+                v-else-if="event && isEditingTitle"
+                v-model="editingTitle"
+                @blur="saveTitle"
+                @keyup.enter="saveTitle"
+                @keyup.esc="cancelEditTitle"
+                class="title-input"
+                ref="titleInputRef"
+              />
+              <h2 v-else>日期標記</h2>
+              <button 
+                v-if="event"
+                class="edit-title-btn"
+                @click="startEditTitle"
+                title="編輯標題"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            </div>
             <button class="modal-close" @click="handleClose">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 6L6 18M6 6l12 12"/>
@@ -18,7 +40,28 @@
           <div v-if="event" class="event-details">
             <div class="detail-item" v-if="event.title">
               <span class="detail-label">標題：</span>
-              <span class="detail-value">{{ event.title }}</span>
+              <div class="detail-value-wrapper">
+                <span v-if="!isEditingDetailTitle" class="detail-value">{{ event.title }}</span>
+                <input 
+                  v-else
+                  v-model="editingDetailTitle"
+                  @blur="saveDetailTitle"
+                  @keyup.enter="saveDetailTitle"
+                  @keyup.esc="cancelEditDetailTitle"
+                  class="detail-value-input"
+                  ref="detailTitleInputRef"
+                />
+                <button 
+                  class="edit-detail-btn"
+                  @click="startEditDetailTitle"
+                  title="編輯標題"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="detail-item" v-if="event.description">
               <span class="detail-label">內容：</span>
@@ -26,7 +69,7 @@
             </div>
             <div class="detail-item">
               <span class="detail-label">地點：</span>
-              <span class="detail-value">{{ event.location || '无' }}</span>
+              <span class="detail-value">{{ event.location || '無' }}</span>
             </div>
             <div class="detail-item">
               <span class="detail-label">時間範圍：</span>
@@ -148,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
 
 export interface DateMark {
@@ -173,6 +216,7 @@ const emit = defineEmits<{
   toggleDateBlur: [date: Date | null];
   toggleEventBlur: [eventId: number];
   updateDateMark: [date: Date | null, mark: DateMark | null];
+  updateEventTitle: [eventId: number, newTitle: string];
 }>();
 
 // 使用props傳入的模糊狀態
@@ -193,6 +237,14 @@ const markText = ref('');
 const selectedStickerGroup = ref<string>('ㄇㄚˊ幾兔－表情貼');
 const selectedStickerIndex = ref<number | null>(null);
 const overlayStyle = ref<Record<string, string>>({});
+
+// 标题编辑状态
+const isEditingTitle = ref(false);
+const isEditingDetailTitle = ref(false);
+const editingTitle = ref('');
+const editingDetailTitle = ref('');
+const titleInputRef = ref<HTMLInputElement | null>(null);
+const detailTitleInputRef = ref<HTMLInputElement | null>(null);
 
 // 貼圖組配置
 const stickerGroups = [
@@ -361,27 +413,45 @@ const timeRange = computed(() => {
   
   const start = new Date(props.event.dt_start);
   const end = new Date(props.event.dt_end);
+  const isAllDay = props.event.allday === '1' || props.event.allday === 1 || props.event.allday === 'true';
   
-  const formatDateTime = (date: Date) => {
+  // 格式化日期部分
+  const formatDate = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    
-    if (props.event?.allday === '1' || props.event?.allday === 1 || props.event?.allday === 'true') {
-      return `${year}-${month}-${day}`;
-    }
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    return `${year}-${month}-${day}`;
   };
   
-  const startStr = formatDateTime(start);
-  const endStr = formatDateTime(end);
+  // 格式化时间部分
+  const formatTime = (date: Date) => {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
   
-  if (startStr === endStr) {
-    return startStr;
+  const startDate = formatDate(start);
+  const endDate = formatDate(end);
+  
+  // 全天事件
+  if (isAllDay) {
+    if (startDate === endDate) {
+      return startDate;
+    }
+    return `${startDate} ~ ${endDate}`;
   }
-  return `${startStr} ~ ${endStr}`;
+  
+  // 定时事件
+  const startTime = formatTime(start);
+  const endTime = formatTime(end);
+  
+  // 如果是同一天，只显示一次日期
+  if (startDate === endDate) {
+    return `${startDate} ${startTime} ~ ${endTime}`;
+  }
+  
+  // 不同天，显示完整日期时间
+  return `${startDate} ${startTime} ~ ${endDate} ${endTime}`;
 });
 
 const selectedSticker = computed(() => {
@@ -503,7 +573,72 @@ const toggleBlur = () => {
   }
 };
 
+// 开始编辑标题（header中的标题）
+const startEditTitle = () => {
+  if (!props.event) return;
+  editingTitle.value = props.event.title;
+  isEditingTitle.value = true;
+  nextTick(() => {
+    titleInputRef.value?.focus();
+    titleInputRef.value?.select();
+  });
+};
+
+// 保存标题（header中的标题）
+const saveTitle = () => {
+  if (!props.event) return;
+  const trimmedTitle = editingTitle.value.trim();
+  if (trimmedTitle && trimmedTitle !== props.event.title) {
+    emit('updateEventTitle', props.event._id, trimmedTitle);
+    // 直接更新本地事件对象
+    if (props.event) {
+      props.event.title = trimmedTitle;
+    }
+  }
+  isEditingTitle.value = false;
+};
+
+// 取消编辑标题（header中的标题）
+const cancelEditTitle = () => {
+  isEditingTitle.value = false;
+  editingTitle.value = '';
+};
+
+// 开始编辑详情中的标题
+const startEditDetailTitle = () => {
+  if (!props.event) return;
+  editingDetailTitle.value = props.event.title;
+  isEditingDetailTitle.value = true;
+  nextTick(() => {
+    detailTitleInputRef.value?.focus();
+    detailTitleInputRef.value?.select();
+  });
+};
+
+// 保存详情中的标题
+const saveDetailTitle = () => {
+  if (!props.event) return;
+  const trimmedTitle = editingDetailTitle.value.trim();
+  if (trimmedTitle && trimmedTitle !== props.event.title) {
+    emit('updateEventTitle', props.event._id, trimmedTitle);
+    // 直接更新本地事件对象
+    if (props.event) {
+      props.event.title = trimmedTitle;
+    }
+  }
+  isEditingDetailTitle.value = false;
+};
+
+// 取消编辑详情中的标题
+const cancelEditDetailTitle = () => {
+  isEditingDetailTitle.value = false;
+  editingDetailTitle.value = '';
+};
+
 const handleClose = () => {
+  // 取消编辑状态
+  isEditingTitle.value = false;
+  isEditingDetailTitle.value = false;
   emit('close');
   // 不重置狀態，保持用戶設置的標記
 };
@@ -553,10 +688,59 @@ updateOverlayStyle();
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.header-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
 .modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
+  font-weight: 600;
   color: rgba(255, 255, 255, 0.87);
+  flex: 1;
+  min-width: 0;
+}
+
+.edit-title-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.edit-title-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.title-input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.87);
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: rgba(100, 108, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .modal-close {
@@ -602,13 +786,59 @@ updateOverlayStyle();
   min-width: 80px;
 }
 
-.detail-value {
-  color: rgba(255, 255, 255, 0.87);
+.detail-value-wrapper {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.detail-value {
+  flex: 1;
+  color: rgba(255, 255, 255, 0.87);
   white-space: pre-wrap;
   word-wrap: break-word;
   word-break: break-word;
   line-height: 1.5;
+  min-width: 0;
+}
+
+.edit-detail-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.edit-detail-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.detail-value-input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.87);
+  font-size: inherit;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.detail-value-input:focus {
+  outline: none;
+  border-color: rgba(100, 108, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .date-mark {
@@ -968,6 +1198,10 @@ updateOverlayStyle();
   }
 
   .modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .title-input {
     font-size: 1.25rem;
   }
 
