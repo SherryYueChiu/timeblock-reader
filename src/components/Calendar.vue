@@ -155,7 +155,10 @@
               class="date-mark-sticker" 
             />
           </div>
-          <div class="day-number">{{ day.date }}</div>
+          <div class="day-number-wrapper">
+            <div class="day-number">{{ day.date }}</div>
+            <div v-if="getLunarIcon(day.fullDate)" class="lunar-icon" :class="getLunarIcon(day.fullDate)"></div>
+          </div>
           <div class="events">
             <!-- 普通活動（活動0、備忘3）和其他類型 -->
             <div
@@ -280,6 +283,7 @@ import type { TimeBlock } from '../utils/dbReader';
 import EventModal from './EventModal.vue';
 import type { DateMark } from './EventModal.vue';
 import { generateShareUrl } from '../utils/shareEncoder';
+import { getLunarIconType } from '../utils/lunarCalendar';
 
 const props = defineProps<{
   timeBlocks: TimeBlock[];
@@ -610,6 +614,11 @@ const getMarkOverlayStyle = (date: Date): Record<string, string> => {
 // APNG重播管理（用於日曆上的貼圖）
 const calendarApngTimers = ref<Map<string, number>>(new Map());
 const calendarApngRefs = ref<Map<string, HTMLImageElement>>(new Map());
+
+// 獲取農曆圖標
+const getLunarIcon = (date: Date): string | null => {
+  return getLunarIconType(date);
+};
 
 // 獲取貼圖路徑
 const getStickerPath = (stickerGroup: string | null, index: number): string => {
@@ -1473,16 +1482,66 @@ if (import.meta.env.DEV) {
   border-color: rgba(100, 108, 255, 0.5);
 }
 
+.day-number-wrapper {
+  position: relative;
+  margin-bottom: 0.5rem;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
 .day-number {
   font-weight: 600;
-  margin-bottom: 0.5rem;
   color: rgba(255, 255, 255, 0.87);
-  flex-shrink: 0;
+  display: inline-block;
+}
+
+.lunar-icon {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background-color: transparent;
+}
+
+.lunar-icon.empty-circle {
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.lunar-icon.right-half {
+  background-color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.6);
+  clip-path: polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%);
+}
+
+.lunar-icon.full-circle {
+  background-color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.lunar-icon.left-half {
+  background-color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.6);
+  clip-path: polygon(0% 0%, 50% 0%, 50% 100%, 0% 100%);
 }
 
 .calendar-day.today .day-number {
   color: #646cff;
   font-weight: 700;
+}
+
+.calendar-day.today .lunar-icon {
+  border-color: #646cff;
+}
+
+.calendar-day.today .lunar-icon.right-half,
+.calendar-day.today .lunar-icon.full-circle,
+.calendar-day.today .lunar-icon.left-half {
+  background-color: #646cff;
+  border-color: #646cff;
 }
 
 .events {
@@ -2095,8 +2154,30 @@ if (import.meta.env.DEV) {
     color: #213547;
   }
 
+  .lunar-icon {
+    border-color: rgba(0, 0, 0, 0.4);
+  }
+
+  .lunar-icon.right-half,
+  .lunar-icon.full-circle,
+  .lunar-icon.left-half {
+    background-color: rgba(0, 0, 0, 0.4);
+    border-color: rgba(0, 0, 0, 0.4);
+  }
+
   .calendar-day.today .day-number {
     color: #646cff;
+  }
+
+  .calendar-day.today .lunar-icon {
+    border-color: #646cff;
+  }
+
+  .calendar-day.today .lunar-icon.right-half,
+  .calendar-day.today .lunar-icon.full-circle,
+  .calendar-day.today .lunar-icon.left-half {
+    background-color: #646cff;
+    border-color: #646cff;
   }
 
   .event-task,
