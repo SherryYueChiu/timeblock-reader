@@ -16,17 +16,72 @@
       @update-event-title="updateEventTitle"
       @update-event-description="updateEventDescription"
     />
+    <!-- 分享月份範圍選擇彈窗 -->
+    <Teleport to="body">
+      <div v-if="isShareRangeOpen" class="share-range-modal-overlay" @click.self="closeShareRange">
+        <div class="share-range-modal-container">
+          <div class="share-range-modal-header">
+            <h2>選擇分享月份範圍</h2>
+          </div>
+          <div class="share-range-modal-content">
+            <div class="share-range-display">
+              <div class="range-item">
+                <div class="range-item-label">開始</div>
+                <div class="range-item-controls">
+                  <button class="range-arrow-btn" @click="adjustStartMonth(-1)" title="上一個月">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                  </button>
+                  <div class="range-date-display">
+                    <span class="range-year">{{ shareStartYear }}年</span>
+                    <span class="range-month">{{ shareStartMonth }}月</span>
+                  </div>
+                  <button class="range-arrow-btn" @click="adjustStartMonth(1)" title="下一個月">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 5v14M19 12l-7 7-7-7"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="range-separator">～</div>
+              <div class="range-item">
+                <div class="range-item-label">結束</div>
+                <div class="range-item-controls">
+                  <button class="range-arrow-btn" @click="adjustEndMonth(-1)" title="上一個月">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                  </button>
+                  <div class="range-date-display">
+                    <span class="range-year">{{ shareEndYear }}年</span>
+                    <span class="range-month">{{ shareEndMonth }}月</span>
+                  </div>
+                  <button class="range-arrow-btn" @click="adjustEndMonth(1)" title="下一個月">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 5v14M19 12l-7 7-7-7"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="share-range-preview">
+              <span class="preview-text">{{ shareRangeText }}</span>
+            </div>
+            <div class="share-range-actions">
+              <button class="share-range-cancel-btn" @click="closeShareRange">取消</button>
+              <button class="share-range-confirm-btn" @click="confirmShareRange">確認分享</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
     <!-- 搜尋彈窗 -->
     <Teleport to="body">
       <div v-if="isSearchOpen" class="search-modal-overlay" @click.self="closeSearch">
       <div class="search-modal-container">
         <div class="search-modal-header">
           <h2>搜尋活動</h2>
-          <button class="search-modal-close" @click="closeSearch">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
         </div>
         <div class="search-modal-content">
           <div class="search-input-wrapper">
@@ -282,7 +337,7 @@ import { computed, ref, onBeforeUnmount } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
 import EventModal from './EventModal.vue';
 import type { DateMark } from './EventModal.vue';
-import { generateShareUrl } from '../utils/shareEncoder';
+import { generateShareUrl, generateMultiMonthShareUrl } from '../utils/shareEncoder';
 import { getLunarIconType } from '../utils/lunarCalendar';
 
 const props = defineProps<{
@@ -316,6 +371,13 @@ const searchQuery = ref('');
 const searchResults = ref<Array<{ event: TimeBlock; date: Date; dateStr: string }>>([]);
 const isSearching = ref(false);
 
+// 分享月份選擇狀態
+const isShareRangeOpen = ref(false);
+const shareStartYear = ref(currentYear.value);
+const shareStartMonth = ref(currentMonth.value);
+const shareEndYear = ref(currentYear.value);
+const shareEndMonth = ref(currentMonth.value);
+
 // 模糊狀態：儲存被模糊的日期和活動ID
 const blurredDates = ref<Set<string>>(new Set()); // 格式: "YYYY-MM-DD"
 const blurredEvents = ref<Set<number>>(new Set()); // 事件ID集合
@@ -337,17 +399,62 @@ const closeSearch = () => {
   searchResults.value = [];
 };
 
-// 分享本月日曆
+// 打開分享月份範圍選擇器
 const handleShare = () => {
-  const year = currentYear.value;
-  const month = currentMonth.value;
+  shareStartYear.value = currentYear.value;
+  shareStartMonth.value = currentMonth.value;
+  shareEndYear.value = currentYear.value;
+  shareEndMonth.value = currentMonth.value;
+  isShareRangeOpen.value = true;
+};
+
+// 關閉分享月份範圍選擇器
+const closeShareRange = () => {
+  isShareRangeOpen.value = false;
+};
+
+// 確認分享月份範圍
+const confirmShareRange = () => {
+  const startY = shareStartYear.value;
+  const startM = shareStartMonth.value;
+  const endY = shareEndYear.value;
+  const endM = shareEndMonth.value;
+  
+  // 驗證日期範圍
+  const startDate = new Date(startY, startM - 1, 1);
+  const endDate = new Date(endY, endM, 0, 23, 59, 59, 999);
+  
+  if (startDate > endDate) {
+    alert('開始月份不能晚於結束月份！');
+    return;
+  }
+  
+  isShareRangeOpen.value = false;
   
   try {
-    const shareUrl = generateShareUrl(props.timeBlocks, year, month, blurredEvents.value, blurredDates.value);
+    let shareUrl: string;
+    let rangeText: string;
+    
+    // 如果是單個月，使用舊的單月分享URL（向後兼容）
+    if (startY === endY && startM === endM) {
+      shareUrl = generateShareUrl(props.timeBlocks, startY, startM, blurredEvents.value, blurredDates.value);
+      rangeText = `${startY}年${startM}月`;
+    } else {
+      shareUrl = generateMultiMonthShareUrl(
+        props.timeBlocks,
+        startY,
+        startM,
+        endY,
+        endM,
+        blurredEvents.value,
+        blurredDates.value
+      );
+      rangeText = `${startY}年${startM}月 至 ${endY}年${endM}月`;
+    }
     
     // 复制到剪贴板
     navigator.clipboard.writeText(shareUrl).then(() => {
-      alert(`分享連結已複製到剪貼板！\n\n連結：${shareUrl}\n\n您可以分享此連結給他人，他們打開後即可直接查看 ${year}年${month}月 的日曆。`);
+      alert(`分享連結已複製到剪貼板！\n\n連結：${shareUrl}\n\n您可以分享此連結給他人，他們打開後即可直接查看 ${rangeText} 的日曆。`);
     }).catch(() => {
       // 如果复制失败，显示链接让用户手动复制
       const userConfirmed = confirm(
@@ -362,6 +469,72 @@ const handleShare = () => {
     alert('生成分享連結失敗，請稍後重試。');
   }
 };
+
+// 調整開始月份
+const adjustStartMonth = (delta: number) => {
+  let newYear = shareStartYear.value;
+  let newMonth = shareStartMonth.value + delta;
+  
+  if (newMonth < 1) {
+    newMonth = 12;
+    newYear--;
+  } else if (newMonth > 12) {
+    newMonth = 1;
+    newYear++;
+  }
+  
+  shareStartYear.value = newYear;
+  shareStartMonth.value = newMonth;
+  
+  // 如果開始月份晚於結束月份，自動調整結束月份
+  const startDate = new Date(newYear, newMonth - 1, 1);
+  const endDate = new Date(shareEndYear.value, shareEndMonth.value, 0, 23, 59, 59, 999);
+  if (startDate > endDate) {
+    shareEndYear.value = newYear;
+    shareEndMonth.value = newMonth;
+  }
+};
+
+// 調整結束月份
+const adjustEndMonth = (delta: number) => {
+  let newYear = shareEndYear.value;
+  let newMonth = shareEndMonth.value + delta;
+  
+  if (newMonth < 1) {
+    newMonth = 12;
+    newYear--;
+  } else if (newMonth > 12) {
+    newMonth = 1;
+    newYear++;
+  }
+  
+  shareEndYear.value = newYear;
+  shareEndMonth.value = newMonth;
+  
+  // 如果結束月份早於開始月份，自動調整開始月份
+  const startDate = new Date(shareStartYear.value, shareStartMonth.value - 1, 1);
+  const endDate = new Date(newYear, newMonth, 0, 23, 59, 59, 999);
+  if (startDate > endDate) {
+    shareStartYear.value = newYear;
+    shareStartMonth.value = newMonth;
+  }
+};
+
+// 計算分享範圍文字
+const shareRangeText = computed(() => {
+  const startY = shareStartYear.value;
+  const startM = shareStartMonth.value;
+  const endY = shareEndYear.value;
+  const endM = shareEndMonth.value;
+  
+  if (startY === endY && startM === endM) {
+    return `${startY}年${startM}月`;
+  } else if (startY === endY) {
+    return `${startY}年${startM}月 ～ ${endM}月`;
+  } else {
+    return `${startY}年${startM}月 ～ ${endY}年${endM}月`;
+  }
+});
 
 // 執行搜尋
 const performSearch = () => {
@@ -1187,6 +1360,200 @@ if (import.meta.env.DEV) {
 }
 
 /* 搜索弹窗样式 */
+/* 分享月份範圍選擇器樣式 */
+.share-range-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.share-range-modal-container {
+  background-color: rgba(30, 30, 30, 0.95);
+  border-radius: 12px;
+  max-width: 650px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.share-range-modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.share-range-modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.share-range-modal-content {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.share-range-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+}
+
+.range-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.range-item-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.range-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.range-arrow-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.range-arrow-btn:hover {
+  background: rgba(100, 108, 255, 0.2);
+  border-color: rgba(100, 108, 255, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+  transform: scale(1.05);
+}
+
+.range-arrow-btn:active {
+  transform: scale(0.95);
+}
+
+.range-arrow-btn svg {
+  width: 100%;
+  height: 100%;
+}
+
+.range-date-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 120px;
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.range-year {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.range-month {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.range-separator {
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 0 0.5rem;
+  flex-shrink: 0;
+}
+
+.share-range-preview {
+  text-align: center;
+  padding: 1rem;
+  background: rgba(100, 108, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(100, 108, 255, 0.2);
+}
+
+.preview-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.5px;
+}
+
+.share-range-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.share-range-cancel-btn,
+.share-range-confirm-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.share-range-cancel-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.share-range-cancel-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.share-range-confirm-btn {
+  background-color: rgba(100, 108, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.share-range-confirm-btn:hover {
+  background-color: rgba(100, 108, 255, 1);
+  color: rgba(255, 255, 255, 1);
+}
+
 .search-modal-overlay {
   position: fixed;
   top: 0;
@@ -1210,12 +1577,11 @@ if (import.meta.env.DEV) {
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .search-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -1227,32 +1593,20 @@ if (import.meta.env.DEV) {
   color: rgba(255, 255, 255, 0.87);
 }
 
-.search-modal-close {
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.search-modal-close:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.87);
-}
-
 .search-modal-content {
   padding: 1.5rem;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
 }
 
 .search-input-wrapper {
   margin-bottom: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .search-input {
@@ -1265,6 +1619,7 @@ if (import.meta.env.DEV) {
   font-size: 1rem;
   font-family: inherit;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .search-input:focus {
@@ -1288,6 +1643,8 @@ if (import.meta.env.DEV) {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .search-result-item {
@@ -1297,6 +1654,9 @@ if (import.meta.env.DEV) {
   background-color: rgba(255, 255, 255, 0.03);
   cursor: pointer;
   transition: all 0.2s ease;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
 }
 
 .search-result-item:hover {
@@ -1310,6 +1670,11 @@ if (import.meta.env.DEV) {
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
   margin-bottom: 0.5rem;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .result-meta {
@@ -1339,17 +1704,25 @@ if (import.meta.env.DEV) {
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
+  word-break: break-word;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .result-location {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.6);
   margin-top: 0.5rem;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .search-no-results,
@@ -1764,6 +2137,63 @@ if (import.meta.env.DEV) {
 
 /* 手機版適配 */
 @media (max-width: 768px) {
+  .share-range-modal-container {
+    max-width: 95%;
+  }
+
+  .share-range-modal-header {
+    padding: 1rem;
+  }
+
+  .share-range-modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .share-range-modal-content {
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .share-range-display {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem 0;
+  }
+
+  .range-separator {
+    transform: rotate(90deg);
+    padding: 0.5rem 0;
+  }
+
+  .range-item-controls {
+    gap: 0.75rem;
+  }
+
+  .range-date-display {
+    min-width: 80px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .range-month {
+    font-size: 1.25rem;
+  }
+
+  .share-range-preview {
+    padding: 0.75rem;
+  }
+
+  .preview-text {
+    font-size: 1rem;
+  }
+
+  .share-range-actions {
+    flex-direction: column;
+  }
+
+  .share-range-cancel-btn,
+  .share-range-confirm-btn {
+    width: 100%;
+  }
   .calendar-container {
     padding: 1rem;
   }
@@ -1806,6 +2236,8 @@ if (import.meta.env.DEV) {
   .search-modal-container {
     max-width: 95%;
     max-height: 90vh;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .search-modal-header {
@@ -1818,6 +2250,10 @@ if (import.meta.env.DEV) {
 
   .search-modal-content {
     padding: 1rem;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
   }
 
   .search-result-item {
@@ -2044,14 +2480,6 @@ if (import.meta.env.DEV) {
     color: #213547;
   }
 
-  .search-modal-close {
-    color: rgba(0, 0, 0, 0.6);
-  }
-
-  .search-modal-close:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-    color: rgba(0, 0, 0, 0.87);
-  }
 
   .search-input {
     border-color: rgba(0, 0, 0, 0.2);

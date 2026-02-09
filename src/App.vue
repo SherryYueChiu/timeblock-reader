@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import FileUpload from './components/FileUpload.vue';
 import Calendar from './components/Calendar.vue';
 import type { TimeBlock } from './utils/dbReader';
-import { loadFromUrl, expandToTimeBlocks, getUrlParams } from './utils/shareEncoder';
+import { loadFromUrl, expandToTimeBlocks, getUrlParams, type MultiMonthData } from './utils/shareEncoder';
 
 const timeBlocks = ref<TimeBlock[]>([]);
 const hasLoadedFile = ref(false);
@@ -23,8 +23,18 @@ onMounted(() => {
       const events = expandToTimeBlocks(monthData);
       timeBlocks.value = events;
       hasLoadedFile.value = true;
-      initialYear.value = monthData.y;
-      initialMonth.value = monthData.m;
+      
+      // 检查是多个月份数据还是单月数据
+      if ('startY' in monthData) {
+        // 多个月份数据，使用开始月份作为初始显示
+        const multiMonthData = monthData as MultiMonthData;
+        initialYear.value = multiMonthData.startY;
+        initialMonth.value = multiMonthData.startM;
+      } else {
+        // 单月数据
+        initialYear.value = monthData.y;
+        initialMonth.value = monthData.m;
+      }
     } catch (error) {
       console.error('加载分享数据失败:', error);
     }

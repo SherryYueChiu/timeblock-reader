@@ -21,6 +21,15 @@ export interface MonthData {
   events: MinimalTimeBlock[];
 }
 
+export interface MultiMonthData {
+  v: number;              // version
+  startY: number;         // start year
+  startM: number;         // start month
+  endY: number;           // end year
+  endM: number;           // end month
+  events: MinimalTimeBlock[];
+}
+
 // 混淆标题：对每个字符做+1/-1偏移，让中英文事件看起来长度差不多
 function obfuscateTitle(title: string): string {
   return title.split('').map((char, index) => {
@@ -152,7 +161,92 @@ export function decodeMonthData(encoded: string): MonthData {
   }
 }
 
-// 生成分享URL
+// 创建多个月份数据
+export function createMultiMonthData(
+  events: TimeBlock[],
+  startYear: number,
+  startMonth: number,
+  endYear: number,
+  endMonth: number,
+  blurredEvents: Set<number>,
+  blurredDates: Set<string> = new Set()
+): MultiMonthData {
+  const startTime = new Date(startYear, startMonth - 1, 1).getTime();
+  const endTime = new Date(endYear, endMonth, 0, 23, 59, 59, 999).getTime();
+  
+  const filteredEvents = events
+    .filter(event => {
+      // 过滤已删除事件
+      if (event.dt_delete) return false;
+      
+      // 检查事件是否与目标月份范围有交集
+      return (
+        (event.dt_start >= startTime && event.dt_start <= endTime) ||
+        (event.dt_end >= startTime && event.dt_end <= endTime) ||
+        (event.dt_start <= startTime && event.dt_end >= endTime)
+      );
+    })
+    .map(event => {
+      // 检查事件是否被模糊（事件级别或日期级别）
+      const isEventBlurred = blurredEvents.has(event._id);
+      const eventStartDate = formatDateKey(event.dt_start);
+      const eventEndDate = formatDateKey(event.dt_end);
+      const isDateBlurred = blurredDates.has(eventStartDate) || blurredDates.has(eventEndDate);
+      const isBlurred = isEventBlurred || isDateBlurred;
+      
+      return minimizeTimeBlock(event, isBlurred);
+    });
+  
+  return {
+    v: 2, // 版本2表示多个月份数据
+    startY: startYear,
+    startM: startMonth,
+    endY: endYear,
+    endM: endMonth,
+    events: filteredEvents
+  };
+}
+
+// 编码多个月份数据
+export function encodeMultiMonthData(data: MultiMonthData): string {
+  try {
+    // 1. JSON序列化
+    const json = JSON.stringify(data);
+    
+    // 2. Gzip压缩
+    const compressed = pako.deflate(json, { level: 9 });
+    
+    // 3. Base64编码
+    const base64 = btoa(String.fromCharCode(...compressed));
+    
+    return base64;
+  } catch (error) {
+    console.error('编码失败:', error);
+    throw new Error('Failed to encode multi-month data');
+  }
+}
+
+// 解码多个月份数据
+export function decodeMultiMonthData(encoded: string): MultiMonthData {
+  try {
+    // 1. Base64解码
+    const binary = atob(encoded);
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    
+    // 2. Gzip解压
+    const decompressed = pako.inflate(bytes, { to: 'string' });
+    
+    // 3. JSON解析
+    const data = JSON.parse(decompressed) as MultiMonthData;
+    
+    return data;
+  } catch (error) {
+    console.error('解码失败:', error);
+    throw new Error('Failed to decode multi-month data');
+  }
+}
+
+// 生成分享URL（单个月份，保持向后兼容）
 export function generateShareUrl(
   events: TimeBlock[],
   year: number,
@@ -166,8 +260,24 @@ export function generateShareUrl(
   return `${baseUrl}#share=${encoded}&y=${year}&m=${month}`;
 }
 
-// 从URL读取数据
-export function loadFromUrl(): MonthData | null {
+// 生成多个月份分享URL
+export function generateMultiMonthShareUrl(
+  events: TimeBlock[],
+  startYear: number,
+  startMonth: number,
+  endYear: number,
+  endMonth: number,
+  blurredEvents: Set<number> = new Set(),
+  blurredDates: Set<string> = new Set()
+): string {
+  const multiMonthData = createMultiMonthData(events, startYear, startMonth, endYear, endMonth, blurredEvents, blurredDates);
+  const encoded = encodeMultiMonthData(multiMonthData);
+  const baseUrl = window.location.origin + window.location.pathname;
+  return `${baseUrl}#share=${encoded}&sy=${startYear}&sm=${startMonth}&ey=${endYear}&em=${endMonth}`;
+}
+
+// 从URL读取数据（支持单月和多月）
+export function loadFromUrl(): MonthData | MultiMonthData | null {
   const hash = window.location.hash;
   const match = hash.match(/share=([^&]+)/);
   if (!match) return null;
@@ -175,6 +285,18 @@ export function loadFromUrl(): MonthData | null {
   try {
     const encoded = match[1];
     if (!encoded) return null;
+    
+    // 先尝试解码为多个月份数据（版本2）
+    try {
+      const multiMonthData = decodeMultiMonthData(encoded);
+      if (multiMonthData.v === 2) {
+        return multiMonthData;
+      }
+    } catch {
+      // 如果不是多个月份数据，继续尝试单月数据
+    }
+    
+    // 解码为单月数据（版本1，向后兼容）
     return decodeMonthData(encoded);
   } catch (error) {
     console.error('从URL加载数据失败:', error);
@@ -183,12 +305,16 @@ export function loadFromUrl(): MonthData | null {
 }
 
 // 将精简数据扩展为完整TimeBlock（用于兼容现有组件）
-export function expandToTimeBlocks(monthData: MonthData): TimeBlock[] {
+export function expandToTimeBlocks(monthData: MonthData | MultiMonthData): TimeBlock[] {
+  const isMultiMonth = 'startY' in monthData;
+  
   return monthData.events.map((minimal, index) => {
     const isPrivate = minimal.p === 1;
     const event: TimeBlock = {
       _id: index + 1,
-      uid: `share-${monthData.y}-${monthData.m}-${index}`,
+      uid: isMultiMonth 
+        ? `share-${monthData.startY}-${monthData.startM}-${monthData.endY}-${monthData.endM}-${index}`
+        : `share-${monthData.y}-${monthData.m}-${index}`,
       type: minimal.ty,
       title: minimal.t, // 标题保持混淆状态
       color: minimal.c,
@@ -219,9 +345,21 @@ export function expandToTimeBlocks(monthData: MonthData): TimeBlock[] {
   });
 }
 
-// 获取URL中的年份和月份参数
+// 获取URL中的年份和月份参数（支持单月和多月）
 export function getUrlParams(): { year: number; month: number } | null {
   const hash = window.location.hash;
+  
+  // 先检查多个月份参数
+  const startYearMatch = hash.match(/[?&]sy=(\d+)/);
+  const startMonthMatch = hash.match(/[?&]sm=(\d+)/);
+  if (startYearMatch && startMonthMatch && startYearMatch[1] && startMonthMatch[1]) {
+    return {
+      year: parseInt(startYearMatch[1], 10),
+      month: parseInt(startMonthMatch[1], 10)
+    };
+  }
+  
+  // 检查单月参数（向后兼容）
   const yearMatch = hash.match(/[?&]y=(\d+)/);
   const monthMatch = hash.match(/[?&]m=(\d+)/);
   
