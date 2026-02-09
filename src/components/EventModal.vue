@@ -65,7 +65,7 @@
               <span class="detail-value">{{ event.location || '無' }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">時間範圍：</span>
+              <span class="detail-label">時間：</span>
               <span class="detail-value">{{ timeRange }}</span>
             </div>
           </div>

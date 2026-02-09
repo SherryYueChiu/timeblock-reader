@@ -278,7 +278,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onBeforeUnmount } from 'vue';
+import { computed, ref, onBeforeUnmount } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
 import EventModal from './EventModal.vue';
 import type { DateMark } from './EventModal.vue';
@@ -756,16 +756,6 @@ const debugIntervalEvent = (event: TimeBlock) => {
     datesInRange
   };
 };
-
-// 監聽區間事件，輸出調試信息
-watch(() => props.timeBlocks, (newBlocks) => {
-  const intervalEvents = newBlocks.filter(event => event.type === 4 && !event.dt_delete);
-  if (intervalEvents.length > 0) {
-    intervalEvents.forEach(event => {
-      debugIntervalEvent(event);
-    });
-  }
-}, { immediate: true });
 
 // 檢查事件是否在某一天
 const isEventOnDate = (event: TimeBlock, date: Date): boolean => {
@@ -1351,6 +1341,7 @@ if (import.meta.env.DEV) {
   word-wrap: break-word;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1378,8 +1369,10 @@ if (import.meta.env.DEV) {
   border-radius: 12px;
   padding: 1rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  overflow-x: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .weekday-header {
@@ -1388,6 +1381,8 @@ if (import.meta.env.DEV) {
   gap: 0.5rem;
   margin-bottom: 0.5rem;
   min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .weekday {
@@ -1405,6 +1400,8 @@ if (import.meta.env.DEV) {
   gap: 0.5rem;
   min-width: 0;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .calendar-day {
@@ -1418,8 +1415,9 @@ if (import.meta.env.DEV) {
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 /* 日期标记遮罩 */
@@ -1656,20 +1654,16 @@ if (import.meta.env.DEV) {
 .interval-line {
   position: absolute;
   bottom: 0.25rem;
-  left: calc(-0.5rem - 0.25rem);
-  right: calc(-0.5rem - 0.25rem);
+  left: 0;
+  right: 0;
   height: auto;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   z-index: 1;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   min-height: 18px;
-}
-
-.interval-line.blurred {
-  /* 模糊的区间线需要可以点击来恢复 */
-  pointer-events: auto;
 }
 
 .interval-content {
@@ -1678,7 +1672,8 @@ if (import.meta.env.DEV) {
   align-items: flex-start;
   width: 100%;
   position: relative;
-  padding: 0 0.5rem;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .interval-text {
@@ -1877,12 +1872,12 @@ if (import.meta.env.DEV) {
 
   .interval-line {
     bottom: 0.2rem;
-    left: calc(-0.375rem - 0.125rem);
-    right: calc(-0.375rem - 0.125rem);
+    left: 0;
+    right: 0;
   }
 
   .interval-content {
-    padding: 0 0.375rem;
+    padding: 0;
   }
 
   .interval-text {
@@ -1982,13 +1977,13 @@ if (import.meta.env.DEV) {
 
   .interval-line {
     bottom: 0.15rem;
-    left: calc(-0.3rem - 0.1rem);
-    right: calc(-0.3rem - 0.1rem);
+    left: 0;
+    right: 0;
     min-height: 16px;
   }
 
   .interval-content {
-    padding: 0 0.3rem;
+    padding: 0;
   }
 
   .interval-text {
