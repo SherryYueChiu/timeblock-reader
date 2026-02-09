@@ -1,0 +1,82 @@
+/* 字体配置文件 - 支持多套字体切换 */
+
+/* 
+ * 使用说明：
+ * 1. 将你的字体文件放入此目录（推荐使用 .woff2 格式）
+ * 2. 取消下面对应字体集的注释
+ * 3. 修改字体文件路径和名称以匹配你的实际文件
+ */
+
+/* ========== 字体集 1: 粉圆体 ========== */
+@font-face {
+  font-family: 'FontSet1';
+  src: url('./jf-openhuninn_v2.1.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FontSet1';
+  src: url('./jf-openhuninn_v2.1.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FontSet1';
+  src: url('./jf-openhuninn_v2.1.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ========== 字体集 2: 全瀨体 ========== */
+@font-face {
+  font-family: 'FontSet2';
+  src: url('./cjkFonts_allseto_v1.11.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FontSet2';
+  src: url('./cjkFonts_allseto_v1.11.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FontSet2';
+  src: url('./cjkFonts_allseto_v1.11.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ========== 字体变量定义 ========== */
+:root {
+  /* 回退字体（系统默认字体） */
+  --font-family-fallback: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  
+  /* 当前使用的字体集，默认为粉圆体（FontSet1） */
+  --font-family-primary: 'FontSet1', var(--font-family-fallback);
+  
+  /* 备用字体集（全瀨体），用于切换 */
+  --font-family-secondary: 'FontSet2', var(--font-family-fallback);
+}
+
+/* ========== 字体集切换类 ========== */
+/* 当字体文件加载后，这些类会生效 */
+.font-set-1 {
+  /* 如果 FontSet1 字体已定义，则使用它；否则使用回退字体 */
+  --font-family-primary: 'FontSet1', var(--font-family-fallback);
+}
+
+.font-set-2 {
+  /* 如果 FontSet2 字体已定义，则使用它；否则使用回退字体 */
+  --font-family-primary: 'FontSet2', var(--font-family-fallback);
+}
