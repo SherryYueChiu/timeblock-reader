@@ -17,7 +17,7 @@
               />
               <h2 v-else>日期標記</h2>
               <button 
-                v-if="event"
+                v-if="event && !isFromShare"
                 class="edit-title-btn"
                 @click="startEditTitle"
                 title="編輯標題"
@@ -28,41 +28,11 @@
                 </svg>
               </button>
             </div>
-            <button class="modal-close" @click="handleClose">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-            </button>
           </div>
 
         <div class="modal-content">
           <!-- 活動詳情 -->
           <div v-if="event" class="event-details">
-            <div class="detail-item" v-if="event.title">
-              <span class="detail-label">標題：</span>
-              <div class="detail-value-wrapper">
-                <span v-if="!isEditingDetailTitle" class="detail-value">{{ event.title }}</span>
-                <input 
-                  v-else
-                  v-model="editingDetailTitle"
-                  @blur="saveDetailTitle"
-                  @keyup.enter="saveDetailTitle"
-                  @keyup.esc="cancelEditDetailTitle"
-                  class="detail-value-input"
-                  ref="detailTitleInputRef"
-                />
-                <button 
-                  class="edit-detail-btn"
-                  @click="startEditDetailTitle"
-                  title="編輯標題"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
             <div class="detail-item">
               <span class="detail-label">內容：</span>
               <div class="detail-value-wrapper">
@@ -78,6 +48,7 @@
                   rows="2"
                 ></textarea>
                 <button 
+                  v-if="!isFromShare"
                   class="edit-detail-btn"
                   @click="startEditDescription"
                   title="編輯內容"
@@ -97,14 +68,10 @@
               <span class="detail-label">時間範圍：</span>
               <span class="detail-value">{{ timeRange }}</span>
             </div>
-            <div class="detail-item" v-if="eventTypeText">
-              <span class="detail-label">類型：</span>
-              <span class="detail-value">{{ eventTypeText }}</span>
-            </div>
           </div>
 
-          <!-- 日期標記（空白日期） -->
-          <div v-else class="date-mark">
+          <!-- 日期標記（空白日期）- 僅在非分享模式下顯示 -->
+          <div v-else-if="!isFromShare" class="date-mark">
             <!-- 預覽區域 -->
             <div class="preview-section">
               <div class="section-title">預覽效果</div>
@@ -200,11 +167,40 @@
           </div>
           </div>
 
-          <div class="modal-footer">
+          <div v-if="!isFromShare" class="modal-footer">
             <button class="footer-btn blur-btn" @click="toggleBlur">
-              {{ isBlurred ? '解除隱私' : '保護隱私' }}
+              <svg 
+                v-if="isBlurred"
+                xmlns="http://www.w3.org/2000/svg" 
+                width="18" 
+                height="18" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                stroke-width="2" 
+                stroke-linecap="round" 
+                stroke-linejoin="round"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg 
+                v-else
+                xmlns="http://www.w3.org/2000/svg" 
+                width="18" 
+                height="18" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                stroke-width="2" 
+                stroke-linecap="round" 
+                stroke-linejoin="round"
+              >
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+              <span>{{ isBlurred ? '恢復公開' : '設為隱私' }}</span>
             </button>
-            <button class="footer-btn close-btn" @click="handleClose">關閉</button>
           </div>
         </div>
       </div>
@@ -231,6 +227,7 @@ const props = defineProps<{
   isDateBlurred?: boolean;
   isEventBlurred?: boolean;
   dateMark?: DateMark | null;
+  isFromShare?: boolean; // 是否來自分享鏈接
 }>();
 
 const emit = defineEmits<{
@@ -263,11 +260,8 @@ const overlayStyle = ref<Record<string, string>>({});
 
 // 标题编辑状态
 const isEditingTitle = ref(false);
-const isEditingDetailTitle = ref(false);
 const editingTitle = ref('');
-const editingDetailTitle = ref('');
 const titleInputRef = ref<HTMLInputElement | null>(null);
-const detailTitleInputRef = ref<HTMLInputElement | null>(null);
 
 // 描述编辑状态
 const isEditingDescription = ref(false);
@@ -424,17 +418,6 @@ watch(selectedStickerGroup, (newGroup) => {
 });
 
 
-const eventTypeText = computed(() => {
-  if (!props.event) return '';
-  const types: Record<number, string> = {
-    0: '活動',
-    2: '任務',
-    3: '備忘',
-    4: '區間',
-    5: '習慣'
-  };
-  return types[props.event.type] || '未知';
-});
 
 const timeRange = computed(() => {
   if (!props.event) return '';
@@ -632,37 +615,6 @@ const cancelEditTitle = () => {
   editingTitle.value = '';
 };
 
-// 开始编辑详情中的标题
-const startEditDetailTitle = () => {
-  if (!props.event) return;
-  editingDetailTitle.value = props.event.title;
-  isEditingDetailTitle.value = true;
-  nextTick(() => {
-    detailTitleInputRef.value?.focus();
-    detailTitleInputRef.value?.select();
-  });
-};
-
-// 保存详情中的标题
-const saveDetailTitle = () => {
-  if (!props.event) return;
-  const trimmedTitle = editingDetailTitle.value.trim();
-  if (trimmedTitle && trimmedTitle !== props.event.title) {
-    emit('updateEventTitle', props.event._id, trimmedTitle);
-    // 直接更新本地事件对象
-    if (props.event) {
-      props.event.title = trimmedTitle;
-    }
-  }
-  isEditingDetailTitle.value = false;
-};
-
-// 取消编辑详情中的标题
-const cancelEditDetailTitle = () => {
-  isEditingDetailTitle.value = false;
-  editingDetailTitle.value = '';
-};
-
 // 开始编辑描述
 const startEditDescription = () => {
   if (!props.event) return;
@@ -697,7 +649,6 @@ const cancelEditDescription = () => {
 const handleClose = () => {
   // 取消编辑状态
   isEditingTitle.value = false;
-  isEditingDetailTitle.value = false;
   isEditingDescription.value = false;
   emit('close');
   // 不重置狀態，保持用戶設置的標記
@@ -787,9 +738,11 @@ updateOverlayStyle();
 .title-input {
   flex: 1;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.05);
+  padding-bottom: 0.25rem;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+  background-color: transparent;
   color: rgba(255, 255, 255, 0.87);
   font-size: 1.5rem;
   font-weight: 600;
@@ -797,35 +750,11 @@ updateOverlayStyle();
   min-width: 0;
   height: auto;
   line-height: 1.4;
-  border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0;
-  background-color: transparent;
-  padding-bottom: 0.25rem;
 }
 
 .title-input:focus {
   outline: none;
   border-bottom-color: rgba(100, 108, 255, 0.5);
-  background-color: transparent;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.modal-close:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.87);
 }
 
 .modal-content {
@@ -903,6 +832,7 @@ updateOverlayStyle();
 .detail-value-input {
   flex: 1;
   padding: 0;
+  padding-bottom: 0.25rem;
   border: none;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0;
@@ -913,34 +843,17 @@ updateOverlayStyle();
   min-width: 0;
   height: auto;
   line-height: 1.5;
-  padding-bottom: 0.25rem;
 }
 
 .detail-value-input:focus {
   outline: none;
   border-bottom-color: rgba(100, 108, 255, 0.5);
-  background-color: transparent;
 }
 
 .detail-value-textarea {
   resize: vertical;
   min-height: auto;
   max-height: 200px;
-  font-family: inherit;
-  line-height: 1.5;
-  padding: 0;
-  padding-bottom: 0.25rem;
-  border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0;
-  background-color: transparent;
-  height: auto;
-}
-
-.detail-value-textarea:focus {
-  outline: none;
-  border-bottom-color: rgba(100, 108, 255, 0.5);
-  background-color: transparent;
 }
 
 .date-mark {
@@ -1244,26 +1157,26 @@ updateOverlayStyle();
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .blur-btn {
   background-color: rgba(100, 108, 255, 0.2);
   border: 1px solid rgba(100, 108, 255, 0.5);
   color: rgba(255, 255, 255, 0.87);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.blur-btn svg {
+  flex-shrink: 0;
 }
 
 .blur-btn:hover {
   background-color: rgba(100, 108, 255, 0.3);
-}
-
-.close-btn {
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.87);
-}
-
-.close-btn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
 }
 
 /* 过渡动画 */
@@ -1361,15 +1274,6 @@ updateOverlayStyle();
 
   .modal-header h2 {
     color: #213547;
-  }
-
-  .modal-close {
-    color: rgba(0, 0, 0, 0.6);
-  }
-
-  .modal-close:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-    color: rgba(0, 0, 0, 0.87);
   }
 
   .detail-label {

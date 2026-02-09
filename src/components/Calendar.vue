@@ -8,6 +8,7 @@
       :is-date-blurred="selectedDate ? isDateBlurred(selectedDate) : false"
       :is-event-blurred="selectedEvent && selectedDate ? isEventBlurred(selectedEvent._id, selectedDate) : false"
       :date-mark="selectedDate ? getDateMark(selectedDate) : null"
+      :is-from-share="isFromShare"
       @close="closeModal"
       @toggle-date-blur="toggleDateBlur"
       @toggle-event-blur="toggleEventBlur"
@@ -87,7 +88,7 @@
         </button>
       </div>
       <div class="header-actions">
-        <button class="share-button" @click="handleShare" title="分享本月">
+        <button v-if="!isFromShare" class="share-button" @click="handleShare" title="分享本月">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
@@ -338,7 +339,7 @@ const handleShare = () => {
   const month = currentMonth.value;
   
   try {
-    const shareUrl = generateShareUrl(props.timeBlocks, year, month);
+    const shareUrl = generateShareUrl(props.timeBlocks, year, month, blurredEvents.value, blurredDates.value);
     
     // 复制到剪贴板
     navigator.clipboard.writeText(shareUrl).then(() => {
@@ -478,8 +479,28 @@ const goToToday = () => {
   currentDate.value = new Date();
 };
 
+// 檢查是否來自分享（通過檢查 timeBlocks 中是否有 uid 以 'share-' 開頭的事件）
+const isFromShare = computed(() => {
+  return props.timeBlocks.some(event => event.uid && event.uid.startsWith('share-'));
+});
+
+// 檢查事件是否來自分享且是隱私事件
+const isPrivateShareEvent = (event: TimeBlock): boolean => {
+  // 檢查是否來自分享（uid 以 'share-' 開頭）
+  if (event.uid && event.uid.startsWith('share-')) {
+    // 檢查是否是隱私事件（通過 isPrivate 標記或檢查地點和描述是否為空且標題被混淆）
+    return (event as any).isPrivate === true;
+  }
+  return false;
+};
+
 // 處理活動點擊
 const handleEventClick = (event: TimeBlock, dayDate?: Date) => {
+  // 如果是來自分享的隱私事件，阻止打開彈窗
+  if (isPrivateShareEvent(event)) {
+    return;
+  }
+  
   selectedEvent.value = event;
   // 如果有傳入日期，使用傳入的日期；否則從活動時間戳獲取
   if (dayDate) {
@@ -492,6 +513,10 @@ const handleEventClick = (event: TimeBlock, dayDate?: Date) => {
 
 // 處理日期格子點擊（空白處）
 const handleDayClick = (day: { fullDate: Date; events: TimeBlock[] }) => {
+  // 如果來自分享，不允許打開日期標記彈窗
+  if (isFromShare.value) {
+    return;
+  }
   // 所有日期都可以点击打开弹窗
   selectedEvent.value = null;
   selectedDate.value = day.fullDate;
@@ -534,6 +559,14 @@ const isDateBlurred = (date: Date): boolean => {
 
 // 檢查活動是否被模糊（考慮日期模糊和活動單獨模糊）
 const isEventBlurred = (eventId: number, date: Date): boolean => {
+  // 找到對應的事件對象
+  const event = props.timeBlocks.find(e => e._id === eventId);
+  
+  // 如果事件來自分享且是隱私事件，始終返回true
+  if (event && isPrivateShareEvent(event)) {
+    return true;
+  }
+  
   // 如果活動被單獨模糊，直接返回true
   if (blurredEvents.value.has(eventId)) {
     return true;
