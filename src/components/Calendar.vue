@@ -1484,24 +1484,27 @@ if (import.meta.env.DEV) {
   position: relative;
   margin-bottom: 0.5rem;
   flex-shrink: 0;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .day-number {
   font-weight: 600;
   color: rgba(255, 255, 255, 0.87);
   display: inline-block;
+  line-height: 1;
 }
 
 .lunar-icon {
-  position: absolute;
-  top: -2px;
-  right: -2px;
+  position: relative;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.6);
   background-color: transparent;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .lunar-icon.empty-circle {
@@ -1706,11 +1709,11 @@ if (import.meta.env.DEV) {
 }
 
 .interval-start .interval-line-bar {
-  margin-left: 1rem;
+  margin-left: 0.5rem;
 }
 
 .interval-end .interval-line-bar {
-  margin-right: 2rem;
+  margin-right: 0.5rem;
 }
 
 .interval-middle .interval-line-bar {
@@ -1730,11 +1733,11 @@ if (import.meta.env.DEV) {
 }
 
 .interval-arrow-left {
-  left: 1rem;
+  left: 0.5rem;
 }
 
 .interval-arrow-right {
-  right: 2rem;
+  right: 0.5rem;
 }
 
 .interval-start .interval-arrow-line {
@@ -1891,16 +1894,20 @@ if (import.meta.env.DEV) {
     height: 8px;
   }
 
+  .interval-arrow-left {
+    left: 0.25rem;
+  }
+
   .interval-arrow-right {
-    right: 0.375rem;
+    right: 0.25rem;
   }
 
   .interval-start .interval-line-bar {
-    margin-left: 8px;
+    margin-left: 0.25rem;
   }
 
   .interval-end .interval-line-bar {
-    margin-right: 0.375rem;
+    margin-right: 0.25rem;
   }
 }
 
@@ -1998,16 +2005,20 @@ if (import.meta.env.DEV) {
     height: 7px;
   }
 
+  .interval-arrow-left {
+    left: 0.2rem;
+  }
+
   .interval-arrow-right {
-    right: 0.3rem;
+    right: 0.2rem;
   }
 
   .interval-start .interval-line-bar {
-    margin-left: 7px;
+    margin-left: 0.2rem;
   }
 
   .interval-end .interval-line-bar {
-    margin-right: 0.3rem;
+    margin-right: 0.2rem;
   }
 
   .event-more {
