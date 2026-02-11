@@ -1034,8 +1034,8 @@ const calendarDays = computed(() => {
     });
   }
 
-  // 填充下個月的日期（補齊42天，6週）
-  const remainingDays = 42 - days.length;
+  // 填充下個月的日期（補齊35天，5週）
+  const remainingDays = 35 - days.length;
   for (let i = 1; i <= remainingDays; i++) {
     const date = new Date(year, month + 1, i);
     days.push({
@@ -1255,15 +1255,20 @@ if (import.meta.env.DEV) {
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  height: 100%;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   gap: 1rem;
+  flex-shrink: 0;
 }
 
 .month-year-container {
@@ -1742,49 +1747,58 @@ if (import.meta.env.DEV) {
 
 .calendar-grid {
   background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow-x: hidden;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   max-width: 100%;
   box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .weekday-header {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0;
+  margin-bottom: 0;
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
 }
 
 .weekday {
-  padding: 0.75rem;
+  padding: 0.5rem 0.25rem;
   text-align: center;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   min-width: 0;
 }
 
 .calendar-days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.5rem;
+  grid-template-rows: repeat(5, 1fr);
+  gap: 0;
   min-width: 0;
   position: relative;
   width: 100%;
   box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
 }
 
 .calendar-day {
-  min-height: 120px;
-  padding: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  min-height: 0;
+  height: 100%;
+  padding: 0.25rem;
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
   background-color: rgba(255, 255, 255, 0.02);
   transition: all 0.2s ease;
   min-width: 0;
@@ -1803,14 +1817,14 @@ if (import.meta.env.DEV) {
   left: 0;
   right: 0;
   bottom: 0;
-  border-radius: 8px;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 100;
   pointer-events: none;
-  padding: 0.5rem;
+  padding: 0.25rem;
   mix-blend-mode: normal;
 }
 
@@ -1844,7 +1858,7 @@ if (import.meta.env.DEV) {
 
 .calendar-day:hover {
   background-color: rgba(255, 255, 255, 0.05);
-  border-color: rgba(100, 108, 255, 0.3);
+  border-color: rgba(100, 108, 255, 0.2);
 }
 
 .calendar-day.other-month {
@@ -1852,13 +1866,13 @@ if (import.meta.env.DEV) {
 }
 
 .calendar-day.today {
-  background-color: rgba(100, 108, 255, 0.15);
-  border-color: rgba(100, 108, 255, 0.5);
+  background-color: rgba(100, 108, 255, 0.1);
+  border-color: rgba(100, 108, 255, 0.3);
 }
 
 .day-number-wrapper {
   position: relative;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -1870,6 +1884,7 @@ if (import.meta.env.DEV) {
   color: rgba(255, 255, 255, 0.87);
   display: inline-block;
   line-height: 1;
+  font-size: 0.9rem;
 }
 
 .lunar-icon {
@@ -1924,16 +1939,16 @@ if (import.meta.env.DEV) {
 .events {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.15rem;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
 .event-item {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
   color: white;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1943,7 +1958,8 @@ if (import.meta.env.DEV) {
   -webkit-tap-highlight-color: transparent;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
+  line-height: 1.3;
 }
 
 /* 活動事件相鄰時去除圓角 */
@@ -1987,8 +2003,9 @@ if (import.meta.env.DEV) {
 .event-task,
 .event-habit {
   background-color: transparent !important;
-  padding: 0.2rem 0;
+  padding: 0.15rem 0;
   color: rgba(255, 255, 255, 0.87);
+  font-size: 0.65rem;
 }
 
 .event-text {
@@ -2199,10 +2216,15 @@ if (import.meta.env.DEV) {
   }
   .calendar-container {
     padding: 1rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   .calendar-header {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
   }
 
   .month-year-container {
@@ -2273,27 +2295,33 @@ if (import.meta.env.DEV) {
   }
 
   .calendar-grid {
-    padding: 0.75rem;
-    border-radius: 8px;
+    padding: 0.5rem;
+    border-radius: 6px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .weekday-header {
-    gap: 0.25rem;
-    margin-bottom: 0.25rem;
+    gap: 0;
+    margin-bottom: 0;
   }
 
   .weekday {
-    padding: 0.5rem 0.25rem;
-    font-size: 0.8rem;
+    padding: 0.4rem 0.2rem;
+    font-size: 0.75rem;
   }
 
   .calendar-days {
-    gap: 0.25rem;
+    gap: 0;
   }
 
   .calendar-day {
-    min-height: 80px;
-    padding: 0.375rem;
+    min-height: 0;
+    height: 100%;
+    padding: 0.25rem;
+    border-width: 0.5px;
   }
 
   .day-number {
@@ -2353,6 +2381,10 @@ if (import.meta.env.DEV) {
 @media (max-width: 480px) {
   .calendar-container {
     padding: 0.75rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   .calendar-header {
@@ -2377,27 +2409,33 @@ if (import.meta.env.DEV) {
   }
 
   .calendar-grid {
-    padding: 0.5rem;
-    border-radius: 6px;
+    padding: 0.4rem;
+    border-radius: 4px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .weekday-header {
-    gap: 0.2rem;
+    gap: 0;
   }
 
   .weekday {
-    padding: 0.4rem 0.2rem;
-    font-size: 0.75rem;
+    padding: 0.3rem 0.15rem;
+    font-size: 0.7rem;
   }
 
   .calendar-days {
-    gap: 0.2rem;
+    gap: 0;
   }
 
   .calendar-day {
-    min-height: 70px;
-    padding: 0.3rem;
-    border-radius: 6px;
+    min-height: 0;
+    height: 100%;
+    padding: 0.2rem;
+    border-radius: 0;
+    border-width: 0.5px;
   }
 
   .day-number {
