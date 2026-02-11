@@ -5,8 +5,10 @@
       :is-open="isModalOpen"
       :event="selectedEvent"
       :date="selectedDate"
+      :date-events="selectedDate ? getEventsForDate(selectedDate) : []"
       :is-date-blurred="selectedDate ? isDateBlurred(selectedDate) : false"
       :is-event-blurred="selectedEvent && selectedDate ? isEventBlurred(selectedEvent._id, selectedDate) : false"
+      :check-event-blurred="isEventBlurred"
       :date-mark="selectedDate ? getDateMark(selectedDate) : null"
       :is-from-share="isFromShare"
       @close="closeModal"
@@ -15,6 +17,7 @@
       @update-date-mark="updateDateMark"
       @update-event-title="updateEventTitle"
       @update-event-description="updateEventDescription"
+      @event-click="handleEventClick"
     />
     <!-- 分享月份範圍選擇彈窗 -->
     <Teleport to="body">

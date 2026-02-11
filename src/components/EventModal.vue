@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="isOpen" class="modal-overlay" @click.self="handleClose">
+      <div v-if="isOpen" class="modal-overlay" @click.self="handleOverlayClick">
         <div class="modal-container">
           <div class="modal-header">
             <div class="header-title-wrapper">
@@ -15,7 +15,7 @@
                 class="title-input"
                 ref="titleInputRef"
               />
-              <h2 v-else>日期標記</h2>
+              <h2 v-else>{{ date ? formatDisplayDate(date) : '' }}</h2>
               <button 
                 v-if="event && !isFromShare"
                 class="edit-title-btn"
@@ -30,9 +30,10 @@
             </div>
           </div>
 
-        <div class="modal-content">
+        <div class="modal-content-wrapper">
           <!-- 活動詳情 -->
-          <div v-if="event" class="event-details">
+          <div v-if="event" class="modal-content">
+            <div class="event-details">
             <div class="detail-item">
               <span class="detail-label">內容：</span>
               <div class="detail-value-wrapper">
@@ -68,107 +69,39 @@
               <span class="detail-label">時間：</span>
               <span class="detail-value">{{ timeRange }}</span>
             </div>
+            </div>
           </div>
 
-          <!-- 日期標記（空白日期）- 僅在非分享模式下顯示 -->
-          <div v-else-if="!isFromShare" class="date-mark">
-            <!-- 預覽區域 -->
-            <div class="preview-section">
-              <div class="section-title">預覽效果</div>
-              <div class="mark-overlay" :style="overlayStyle">
-                <div v-if="markText" class="mark-text">{{ markText }}</div>
-                <img v-if="selectedSticker" :src="selectedSticker" alt="貼圖" class="mark-sticker" />
-              </div>
-            </div>
-
-            <!-- 設置區域 -->
-            <div class="settings-section">
-              <!-- 背景遮罩設置 -->
-              <div class="settings-group">
-                <div class="group-title">背景遮罩</div>
-                <div class="control-item">
-                  <div class="control-label">顏色</div>
-                  <div class="color-selector">
-                    <div class="morandi-colors">
-                      <button
-                        v-for="color in morandiColors"
-                        :key="color.value"
-                        class="color-btn"
-                        :class="{ active: overlayColor === color.value }"
-                        :style="{ backgroundColor: color.value }"
-                        :title="color.name"
-                        @click="selectMorandiColor(color.value)"
-                      ></button>
-                    </div>
-                    <div class="custom-color-wrapper">
-                      <span class="custom-color-label">自定義：</span>
-                      <input type="color" v-model="overlayColor" @input="updateOverlayStyle" class="color-input" />
-                    </div>
-                  </div>
+          <!-- 日期事件列表（空白日期）- 僅在非分享模式下顯示 -->
+          <div v-else-if="date && !isFromShare" class="modal-content date-events-view">
+            <div class="date-events-list">
+              <div 
+                v-for="evt in (dateEvents || [])" 
+                :key="evt._id"
+                class="date-event-item"
+                @click="handleEventItemClick(evt)"
+              >
+                <div class="event-item-content">
+                  <div class="event-item-time">{{ formatEventTime(evt) }}</div>
+                  <div class="event-item-title">{{ evt.title }}</div>
+                  <div v-if="evt.description" class="event-item-desc">{{ evt.description }}</div>
                 </div>
-                <div class="control-item">
-                  <div class="control-label">透明度：{{ overlayOpacity }}%</div>
-                  <input type="range" v-model="overlayOpacity" min="0" max="100" @input="updateOverlayStyle" class="range-input" />
+                <div v-if="isEventBlurredInList(evt)" class="event-privacy-icon" title="隱私事件">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                  </svg>
                 </div>
               </div>
-
-              <!-- 標記文字設置 -->
-              <div class="settings-group">
-                <div class="group-title">標記文字</div>
-                <div class="control-item">
-                  <textarea 
-                    v-model="markText" 
-                    placeholder="輸入標記文字，例如：有空" 
-                    rows="3"
-                    class="mark-text-input"
-                  ></textarea>
-                </div>
-              </div>
-
-              <!-- 貼圖設置 -->
-              <div class="settings-group">
-                <div class="group-title">選擇貼圖</div>
-                <div class="sticker-group-selector">
-                  <button
-                    v-for="group in stickerGroups"
-                    :key="group.id"
-                    class="sticker-group-btn"
-                    :class="{ active: selectedStickerGroup === group.id }"
-                    @click="selectStickerGroup(group.id)"
-                  >
-                    {{ group.name }}
-                  </button>
-                </div>
-                <div class="sticker-selector">
-                  <button 
-                    v-for="(path, index) in stickerPaths" 
-                    :key="`${selectedStickerGroup}-${index + 1}`"
-                    class="sticker-btn"
-                    :class="{ active: isStickerSelected(index + 1) }"
-                    @click="selectSticker(index + 1)"
-                  >
-                    <img 
-                      :ref="(el) => setApngImageRef(el as HTMLImageElement, index + 1)"
-                      :src="getStickerImageSrc(path)" 
-                      :alt="`貼圖 ${index + 1}`"
-                      :key="`img-${selectedStickerGroup}-${index + 1}`"
-                      class="sticker-image"
-                    />
-                  </button>
-                </div>
-                <button v-if="selectedSticker" @click="clearSticker" class="clear-sticker-btn">清除贴图</button>
-              </div>
-
-              <!-- 操作按鈕 -->
-              <div class="action-buttons">
-                <button @click="resetStyle" class="action-btn reset-btn">重置所有設置</button>
+              <div v-if="!dateEvents || dateEvents.length === 0" class="no-events">
+                此日期沒有活動
               </div>
             </div>
           </div>
-          </div>
 
-          <div v-if="!isFromShare" class="modal-footer">
-            <button class="footer-btn blur-btn" @click="toggleBlur">
+          <!-- 底部固定操作欄（僅在日期視圖且非分享模式） -->
+          <div v-if="!event && date && !isFromShare" class="modal-actions-bar">
+            <button class="action-bar-btn blur-action-btn" @click="toggleBlur">
               <svg 
                 v-if="isBlurred"
                 xmlns="http://www.w3.org/2000/svg" 
@@ -201,6 +134,308 @@
               </svg>
               <span>{{ isBlurred ? '恢復公開' : '設為隱私' }}</span>
             </button>
+            <button class="action-bar-btn overlay-action-btn" @click="openOverlaySettings">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="3" y1="15" x2="21" y2="15"></line>
+              </svg>
+              <span>遮罩設置</span>
+            </button>
+            <button class="action-bar-btn repeat-action-btn" @click="pasteCopiedOverlay" :disabled="!copiedOverlayConfig && !lastOverlayConfig" title="F4 - 貼上複製的遮罩設置或重複上次操作">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              </svg>
+              <span>貼上遮罩</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 原有底部欄（僅在事件詳情視圖） -->
+        <div v-if="event && !isFromShare" class="modal-footer">
+          <button class="footer-btn blur-btn" @click="toggleBlur">
+            <svg 
+              v-if="isBlurred"
+              xmlns="http://www.w3.org/2000/svg" 
+              width="18" 
+              height="18" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              stroke-width="2" 
+              stroke-linecap="round" 
+              stroke-linejoin="round"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <svg 
+              v-else
+              xmlns="http://www.w3.org/2000/svg" 
+              width="18" 
+              height="18" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              stroke-width="2" 
+              stroke-linecap="round" 
+              stroke-linejoin="round"
+            >
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+            <span>{{ isBlurred ? '恢復公開' : '設為隱私' }}</span>
+          </button>
+          <button class="footer-btn close-btn" @click="handleClose" title="離開">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6L6 18M6 6l12 12"></path>
+            </svg>
+            <span>離開</span>
+          </button>
+        </div>
+      </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- 遮罩設置彈窗（第二層） -->
+  <Teleport to="body">
+    <Transition name="modal">
+        <div v-if="isOverlaySettingsOpen" class="modal-overlay overlay-settings-overlay" @click.self.stop="closeOverlaySettings">
+          <div class="modal-container overlay-settings-container">
+            <div class="modal-header">
+              <h2>遮罩設置</h2>
+            </div>
+            <div class="modal-content">
+              <!-- 預覽區域 -->
+              <div class="preview-section">
+                <div class="section-title">預覽效果</div>
+                <div class="mark-overlay" :style="overlayStyle">
+                  <div v-if="markText" class="mark-text">{{ markText }}</div>
+                  <img v-if="selectedSticker" :src="selectedSticker" alt="貼圖" class="mark-sticker" />
+                </div>
+              </div>
+
+              <!-- 設置區域 -->
+              <div class="settings-section">
+                <!-- 背景遮罩設置 -->
+                <div class="settings-group">
+                  <div class="group-title">背景遮罩</div>
+                  <div class="control-item">
+                    <div class="control-label">顏色</div>
+                    <div class="color-selector">
+                      <div class="morandi-colors">
+                        <button
+                          v-for="color in morandiColors"
+                          :key="color.value"
+                          class="color-btn"
+                          :class="{ active: overlayColor === color.value }"
+                          :style="{ backgroundColor: color.value }"
+                          :title="color.name"
+                          @click="selectMorandiColor(color.value)"
+                        ></button>
+                      </div>
+                      <div class="custom-color-wrapper">
+                        <span class="custom-color-label">自定義：</span>
+                        <input type="color" v-model="overlayColor" @input="updateOverlayStyle" class="color-input" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="control-item">
+                    <div class="control-label">透明度：{{ overlayOpacity }}%</div>
+                    <input type="range" v-model="overlayOpacity" min="0" max="100" @input="updateOverlayStyle" class="range-input" />
+                  </div>
+                </div>
+
+                <!-- 標記文字設置 -->
+                <div class="settings-group">
+                  <div class="group-title">標記文字</div>
+                  <div class="control-item">
+                    <textarea 
+                      v-model="markText" 
+                      placeholder="輸入標記文字，例如：有空" 
+                      rows="3"
+                      class="mark-text-input"
+                    ></textarea>
+                  </div>
+                </div>
+
+                <!-- 貼圖設置 -->
+                <div class="settings-group">
+                  <div class="group-title">選擇貼圖</div>
+                  <div class="sticker-group-selector">
+                    <button
+                      v-for="group in stickerGroups"
+                      :key="group.id"
+                      class="sticker-group-btn"
+                      :class="{ active: selectedStickerGroup === group.id }"
+                      @click="selectStickerGroup(group.id)"
+                    >
+                      {{ group.name }}
+                    </button>
+                  </div>
+                  <div class="sticker-selector">
+                    <button 
+                      v-for="(path, index) in stickerPaths" 
+                      :key="`${selectedStickerGroup}-${index + 1}`"
+                      class="sticker-btn"
+                      :class="{ active: isStickerSelected(index + 1) }"
+                      @click="selectSticker(index + 1)"
+                    >
+                      <img 
+                        :ref="(el) => setApngImageRef(el as HTMLImageElement, index + 1)"
+                        :src="getStickerImageSrc(path)" 
+                        :alt="`貼圖 ${index + 1}`"
+                        :key="`img-${selectedStickerGroup}-${index + 1}`"
+                        class="sticker-image"
+                      />
+                    </button>
+                  </div>
+                  <button v-if="selectedSticker" @click="clearSticker" class="clear-sticker-btn">清除贴图</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="footer-btn reset-btn" @click="resetStyle">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                  <path d="M21 3v5h-5"></path>
+                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                  <path d="M3 21v-5h5"></path>
+                </svg>
+                <span>重置所有設置</span>
+              </button>
+              <div class="footer-btn-group">
+                <button class="footer-btn copy-btn" @click="copyOverlay" title="複製當前遮罩設置">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>複製遮罩</span>
+                </button>
+                <button class="footer-btn" @click="closeOverlaySettings">完成</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+  <!-- 事件詳情彈窗（第二層，從事件列表打開） -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="isEventDetailOpen && selectedEventFromList" class="modal-overlay event-detail-overlay" @click.self.stop="closeEventDetail">
+        <div class="modal-container event-detail-container">
+          <div class="modal-header">
+            <div class="header-title-wrapper">
+              <h2 v-if="selectedEventFromList && !isEditingEventTitle">{{ selectedEventFromList.title }}</h2>
+              <input 
+                v-else-if="selectedEventFromList && isEditingEventTitle"
+                v-model="editingEventTitle"
+                @blur="saveEventTitle"
+                @keyup.enter="saveEventTitle"
+                @keyup.esc="cancelEditEventTitle"
+                class="title-input"
+                ref="eventTitleInputRef"
+              />
+              <button 
+                v-if="selectedEventFromList && !isFromShare"
+                class="edit-title-btn"
+                @click="startEditEventTitle"
+                title="編輯標題"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="modal-content">
+            <div class="event-details">
+              <div class="detail-item">
+                <span class="detail-label">內容：</span>
+                <div class="detail-value-wrapper">
+                  <span v-if="!isEditingEventDescription" class="detail-value">{{ selectedEventFromList.description || '無' }}</span>
+                  <textarea 
+                    v-else
+                    v-model="editingEventDescription"
+                    @blur="saveEventDescription"
+                    @keyup.ctrl.enter="saveEventDescription"
+                    @keyup.esc="cancelEditEventDescription"
+                    class="detail-value-input detail-value-textarea"
+                    ref="eventDescriptionInputRef"
+                    rows="2"
+                  ></textarea>
+                  <button 
+                    v-if="!isFromShare"
+                    class="edit-detail-btn"
+                    @click="startEditEventDescription"
+                    title="編輯內容"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">地點：</span>
+                <span class="detail-value">{{ selectedEventFromList.location || '無' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">時間：</span>
+                <span class="detail-value">{{ formatEventDetailTime(selectedEventFromList) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="!isFromShare" class="modal-footer">
+            <button class="footer-btn blur-btn" @click="toggleEventBlurFromList">
+              <svg 
+                v-if="isEventBlurredFromList"
+                xmlns="http://www.w3.org/2000/svg" 
+                width="18" 
+                height="18" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                stroke-width="2" 
+                stroke-linecap="round" 
+                stroke-linejoin="round"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg 
+                v-else
+                xmlns="http://www.w3.org/2000/svg" 
+                width="18" 
+                height="18" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                stroke-width="2" 
+                stroke-linecap="round" 
+                stroke-linejoin="round"
+              >
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+              <span>{{ isEventBlurredFromList ? '恢復公開' : '設為隱私' }}</span>
+            </button>
+            <button class="footer-btn close-btn" @click="closeEventDetail" title="離開">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6L6 18M6 6l12 12"></path>
+              </svg>
+              <span>離開</span>
+            </button>
           </div>
         </div>
       </div>
@@ -224,10 +459,12 @@ const props = defineProps<{
   isOpen: boolean;
   event?: TimeBlock | null;
   date?: Date | null;
+  dateEvents?: TimeBlock[]; // 日期的事件列表
   isDateBlurred?: boolean;
   isEventBlurred?: boolean;
   dateMark?: DateMark | null;
   isFromShare?: boolean; // 是否來自分享鏈接
+  checkEventBlurred?: (eventId: number, date: Date) => boolean; // 檢查事件是否被模糊的函數
 }>();
 
 const emit = defineEmits<{
@@ -237,6 +474,7 @@ const emit = defineEmits<{
   updateDateMark: [date: Date | null, mark: DateMark | null];
   updateEventTitle: [eventId: number, newTitle: string];
   updateEventDescription: [eventId: number, newDescription: string];
+  eventClick: [event: TimeBlock, date: Date]; // 点击事件列表中的事件
 }>();
 
 // 使用props傳入的模糊狀態
@@ -257,6 +495,27 @@ const markText = ref('');
 const selectedStickerGroup = ref<string>('ㄇㄚˊ幾兔－表情貼');
 const selectedStickerIndex = ref<number | null>(null);
 const overlayStyle = ref<Record<string, string>>({});
+
+// 遮罩設置彈窗狀態
+const isOverlaySettingsOpen = ref(false);
+
+// 事件詳情彈窗狀態（第二層，從事件列表打開）
+const isEventDetailOpen = ref(false);
+const selectedEventFromList = ref<TimeBlock | null>(null);
+
+// 事件詳情彈窗的編輯狀態
+const isEditingEventTitle = ref(false);
+const editingEventTitle = ref('');
+const eventTitleInputRef = ref<HTMLInputElement | null>(null);
+const isEditingEventDescription = ref(false);
+const editingEventDescription = ref('');
+const eventDescriptionInputRef = ref<HTMLTextAreaElement | null>(null);
+
+// 上次使用的遮罩配置（用於F4重複操作）
+const lastOverlayConfig = ref<DateMark | null>(null);
+
+// 複製的遮罩配置（用於跨日期復用）
+const copiedOverlayConfig = ref<DateMark | null>(null);
 
 // 标题编辑状态
 const isEditingTitle = ref(false);
@@ -646,12 +905,320 @@ const cancelEditDescription = () => {
   editingDescription.value = '';
 };
 
+// 格式化顯示日期（用於標題）
+const formatDisplayDate = (date: Date | null | undefined): string => {
+  if (!date) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}年${month}月${day}日`;
+};
+
+// 格式化事件時間（用於事件列表顯示）
+const formatEventTime = (event: TimeBlock): string => {
+  const start = new Date(event.dt_start);
+  const end = new Date(event.dt_end);
+  const isAllDay = event.allday === '1' || event.allday === 1 || event.allday === 'true';
+  
+  const formatTime = (date: Date) => {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+  
+  if (isAllDay) {
+    return '全天';
+  }
+  
+  const startTime = formatTime(start);
+  const endTime = formatTime(end);
+  return `${startTime} ~ ${endTime}`;
+};
+
+// 檢查事件列表中的事件是否被模糊
+const isEventBlurredInList = (event: TimeBlock): boolean => {
+  if (!props.date || !props.checkEventBlurred) return false;
+  return props.checkEventBlurred(event._id, props.date);
+};
+
+// 處理事件列表項點擊
+const handleEventItemClick = (event: TimeBlock) => {
+  // 打開第二層事件詳情彈窗，不關閉日期彈窗
+  selectedEventFromList.value = event;
+  isEventDetailOpen.value = true;
+  // 重置編輯狀態
+  isEditingEventTitle.value = false;
+  isEditingEventDescription.value = false;
+  editingEventTitle.value = '';
+  editingEventDescription.value = '';
+};
+
+// 關閉事件詳情彈窗（第二層）
+const closeEventDetail = () => {
+  isEventDetailOpen.value = false;
+  selectedEventFromList.value = null;
+  isEditingEventTitle.value = false;
+  isEditingEventDescription.value = false;
+};
+
+// 格式化事件詳情時間（用於第二層彈窗）
+const formatEventDetailTime = (event: TimeBlock): string => {
+  const start = new Date(event.dt_start);
+  const end = new Date(event.dt_end);
+  const isAllDay = event.allday === '1' || event.allday === 1 || event.allday === 'true';
+  
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  const formatTime = (date: Date) => {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+  
+  const startDate = formatDate(start);
+  const endDate = formatDate(end);
+  
+  if (isAllDay) {
+    if (startDate === endDate) {
+      return startDate;
+    }
+    return `${startDate} ~ ${endDate}`;
+  }
+  
+  const startTime = formatTime(start);
+  const endTime = formatTime(end);
+  
+  if (startDate === endDate) {
+    return `${startDate} ${startTime} ~ ${endTime}`;
+  }
+  
+  return `${startDate} ${startTime} ~ ${endDate} ${endTime}`;
+};
+
+// 事件詳情彈窗的編輯功能
+const startEditEventTitle = () => {
+  if (!selectedEventFromList.value) return;
+  isEditingEventTitle.value = true;
+  editingEventTitle.value = selectedEventFromList.value.title;
+  nextTick(() => {
+    eventTitleInputRef.value?.focus();
+  });
+};
+
+const saveEventTitle = () => {
+  if (!selectedEventFromList.value) return;
+  const newTitle = editingEventTitle.value.trim();
+  if (newTitle && newTitle !== selectedEventFromList.value.title) {
+    emit('updateEventTitle', selectedEventFromList.value._id, newTitle);
+    selectedEventFromList.value.title = newTitle;
+  }
+  isEditingEventTitle.value = false;
+};
+
+const cancelEditEventTitle = () => {
+  isEditingEventTitle.value = false;
+  editingEventTitle.value = '';
+};
+
+const startEditEventDescription = () => {
+  if (!selectedEventFromList.value) return;
+  isEditingEventDescription.value = true;
+  editingEventDescription.value = selectedEventFromList.value.description || '';
+  nextTick(() => {
+    eventDescriptionInputRef.value?.focus();
+  });
+};
+
+const saveEventDescription = () => {
+  if (!selectedEventFromList.value) return;
+  const newDescription = editingEventDescription.value.trim();
+  emit('updateEventDescription', selectedEventFromList.value._id, newDescription);
+  selectedEventFromList.value.description = newDescription;
+  isEditingEventDescription.value = false;
+};
+
+const cancelEditEventDescription = () => {
+  isEditingEventDescription.value = false;
+  editingEventDescription.value = '';
+};
+
+// 檢查事件詳情彈窗中的事件是否被模糊
+const isEventBlurredFromList = computed(() => {
+  if (!selectedEventFromList.value || !props.date) return false;
+  // 使用傳入的檢查函數
+  if (props.checkEventBlurred) {
+    return props.checkEventBlurred(selectedEventFromList.value._id, props.date);
+  }
+  return false;
+});
+
+// 切換事件詳情彈窗中的事件模糊狀態
+const toggleEventBlurFromList = () => {
+  if (!selectedEventFromList.value) return;
+  emit('toggleEventBlur', selectedEventFromList.value._id);
+};
+
+// 打開遮罩設置彈窗
+const openOverlaySettings = () => {
+  isOverlaySettingsOpen.value = true;
+};
+
+// 關閉遮罩設置彈窗
+const closeOverlaySettings = () => {
+  isOverlaySettingsOpen.value = false;
+  // 保存當前配置為上次使用的配置
+  saveCurrentOverlayConfig();
+};
+
+// 保存當前遮罩配置（用於F4重複操作）
+const saveCurrentOverlayConfig = () => {
+  lastOverlayConfig.value = {
+    overlayColor: overlayColor.value,
+    overlayOpacity: overlayOpacity.value,
+    markText: markText.value,
+    stickerGroup: selectedStickerIndex.value ? selectedStickerGroup.value : null,
+    stickerIndex: selectedStickerIndex.value
+  };
+};
+
+// 複製當前遮罩配置
+const copyOverlay = () => {
+  copiedOverlayConfig.value = {
+    overlayColor: overlayColor.value,
+    overlayOpacity: overlayOpacity.value,
+    markText: markText.value,
+    stickerGroup: selectedStickerIndex.value ? selectedStickerGroup.value : null,
+    stickerIndex: selectedStickerIndex.value
+  };
+  // 显示提示（可选）
+  // 可以添加一个toast提示，但这里先简单处理
+};
+
+// 貼上複製的遮罩配置（優先使用複製的，如果沒有則使用上次的）
+const pasteCopiedOverlay = () => {
+  if (!props.date) return;
+  
+  let configToUse: DateMark | null = null;
+  
+  // 優先使用複製的遮罩
+  if (copiedOverlayConfig.value) {
+    configToUse = copiedOverlayConfig.value;
+  } else if (lastOverlayConfig.value) {
+    // 如果沒有複製的，使用上次的配置
+    configToUse = lastOverlayConfig.value;
+  } else {
+    return;
+  }
+  
+  overlayColor.value = configToUse.overlayColor;
+  overlayOpacity.value = configToUse.overlayOpacity;
+  markText.value = configToUse.markText;
+  if (configToUse.stickerGroup) {
+    selectedStickerGroup.value = configToUse.stickerGroup;
+  }
+  selectedStickerIndex.value = configToUse.stickerIndex;
+  updateOverlayStyle();
+  
+  // 保存到當前日期
+  const mark: DateMark = {
+    overlayColor: overlayColor.value,
+    overlayOpacity: overlayOpacity.value,
+    markText: markText.value,
+    stickerGroup: selectedStickerIndex.value ? selectedStickerGroup.value : null,
+    stickerIndex: selectedStickerIndex.value
+  };
+  emit('updateDateMark', props.date, mark);
+  
+  // 同時更新為上次使用的配置（用於F4）
+  lastOverlayConfig.value = mark;
+  
+  // 關閉主彈窗
+  handleClose();
+};
+
+// F4重複操作：應用上次的遮罩配置（優先使用複製的遮罩，如果沒有則使用上次的）
+const repeatLastOverlay = () => {
+  // 優先使用複製的遮罩
+  if (copiedOverlayConfig.value) {
+    pasteCopiedOverlay();
+    return;
+  }
+  
+  // 如果沒有複製的遮罩，使用上次的配置
+  if (!lastOverlayConfig.value || !props.date) return;
+  
+  overlayColor.value = lastOverlayConfig.value.overlayColor;
+  overlayOpacity.value = lastOverlayConfig.value.overlayOpacity;
+  markText.value = lastOverlayConfig.value.markText;
+  if (lastOverlayConfig.value.stickerGroup) {
+    selectedStickerGroup.value = lastOverlayConfig.value.stickerGroup;
+  }
+  selectedStickerIndex.value = lastOverlayConfig.value.stickerIndex;
+  updateOverlayStyle();
+  
+  // 保存到當前日期
+  const mark: DateMark = {
+    overlayColor: overlayColor.value,
+    overlayOpacity: overlayOpacity.value,
+    markText: markText.value,
+    stickerGroup: selectedStickerIndex.value ? selectedStickerGroup.value : null,
+    stickerIndex: selectedStickerIndex.value
+  };
+  emit('updateDateMark', props.date, mark);
+};
+
+// 鍵盤快捷鍵支持（F4）
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'F4' && !props.event && props.date && !isOverlaySettingsOpen.value) {
+    e.preventDefault();
+    // 優先使用複製的遮罩，如果沒有則使用上次的
+    if (copiedOverlayConfig.value) {
+      pasteCopiedOverlay();
+    } else {
+      repeatLastOverlay();
+    }
+  }
+};
+
+// 監聽鍵盤事件
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener('keydown', handleKeyDown);
+  } else {
+    window.removeEventListener('keydown', handleKeyDown);
+  }
+});
+
+// 當保存遮罩設置時，記錄為上次配置
+watch([overlayColor, overlayOpacity, markText, selectedStickerIndex], () => {
+  if (props.date && !isUpdatingFromProps) {
+    // 延遲保存，避免頻繁更新
+    setTimeout(() => {
+      saveCurrentOverlayConfig();
+    }, 300);
+  }
+});
+
 const handleClose = () => {
   // 取消编辑状态
   isEditingTitle.value = false;
   isEditingDescription.value = false;
   emit('close');
   // 不重置狀態，保持用戶設置的標記
+};
+
+// 處理主彈窗外部點擊
+const handleOverlayClick = () => {
+  // 如果遮罩設置彈窗或事件詳情彈窗打開，不關閉主彈窗
+  if (isOverlaySettingsOpen.value || isEventDetailOpen.value) {
+    return;
+  }
+  handleClose();
 };
 
 // 初始化遮罩樣式
@@ -757,12 +1324,194 @@ updateOverlayStyle();
   border-bottom-color: rgba(100, 108, 255, 0.5);
 }
 
+.modal-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .modal-content {
   padding: 1.5rem;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
+/* 日期事件列表視圖 */
+.date-events-view {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.date-events-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.date-event-item {
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.date-event-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(100, 108, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.event-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-privacy-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(100, 108, 255, 0.7);
+  opacity: 0.8;
+  transition: all 0.2s ease;
+}
+
+.date-event-item:hover .event-privacy-icon {
+  color: rgba(100, 108, 255, 0.9);
+  opacity: 1;
+}
+
+.event-privacy-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.event-item-time {
+  font-size: 0.85rem;
+  color: rgba(100, 108, 255, 0.9);
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.event-item-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 0.25rem;
+}
+
+
+.event-item-desc {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.no-events {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+}
+
+/* 底部固定操作欄 */
+.modal-actions-bar {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(30, 30, 30, 0.95);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.action-bar-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.87);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-bar-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(100, 108, 255, 0.3);
+  color: rgba(255, 255, 255, 1);
+}
+
+.action-bar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.blur-action-btn {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.overlay-action-btn {
+  border-color: rgba(100, 108, 255, 0.3);
+  background-color: rgba(100, 108, 255, 0.1);
+}
+
+.repeat-action-btn {
+  border-color: rgba(255, 193, 7, 0.3);
+  background-color: rgba(255, 193, 7, 0.1);
+}
+
+.repeat-action-btn:hover:not(:disabled) {
+  background-color: rgba(255, 193, 7, 0.2);
+  border-color: rgba(255, 193, 7, 0.5);
+}
+
+.action-bar-btn svg {
+  flex-shrink: 0;
+}
+
+/* 遮罩設置彈窗（第二層） */
+.overlay-settings-overlay {
+  z-index: 2000;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.overlay-settings-container {
+  max-width: 700px;
+  max-height: 85vh;
+}
+
+/* 事件詳情彈窗（第二層） */
+.event-detail-overlay {
+  z-index: 2000;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.event-detail-container {
+  max-width: 600px;
+  max-height: 85vh;
+}
 
 .event-details {
   display: flex;
@@ -1146,7 +1895,23 @@ updateOverlayStyle();
   gap: 1rem;
   padding: 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-btn.close-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  margin-left: auto;
+}
+
+.footer-btn.close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.footer-btn.close-btn svg {
+  flex-shrink: 0;
 }
 
 .footer-btn {
@@ -1160,6 +1925,48 @@ updateOverlayStyle();
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.footer-btn.reset-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.footer-btn.reset-btn:hover {
+  background-color: rgba(255, 77, 77, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.footer-btn:not(.reset-btn) {
+  background-color: rgba(100, 108, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.footer-btn:not(.reset-btn):not(.copy-btn):hover {
+  background-color: rgba(100, 108, 255, 1);
+  color: rgba(255, 255, 255, 1);
+}
+
+.footer-btn-group {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.footer-btn.copy-btn {
+  background-color: rgba(100, 108, 255, 0.2);
+  color: rgba(255, 255, 255, 0.87);
+  border: 1px solid rgba(100, 108, 255, 0.3);
+}
+
+.footer-btn.copy-btn:hover {
+  background-color: rgba(100, 108, 255, 0.3);
+  border-color: rgba(100, 108, 255, 0.5);
+  color: rgba(255, 255, 255, 1);
+}
+
+.footer-btn.copy-btn svg {
+  flex-shrink: 0;
 }
 
 .blur-btn {
