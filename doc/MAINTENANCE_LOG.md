@@ -10,6 +10,34 @@
 
 ## 版本历史
 
+### v0.8.0 - 代码重构优化 (2026-02-18)
+
+**主要变更**
+- ✅ 第一阶段优化：提取日期/时间格式化函数和事件类型检查函数
+- ✅ 第二阶段优化：提取 APNG 管理器，统一弹窗样式
+- ✅ 第三阶段优化：提取常量，提升代码可维护性
+- ✅ 优化遮罩配置保存逻辑，减少重复代码
+
+**技术细节**
+- 新增工具文件：
+  - `src/utils/dateFormatter.ts` - 日期/时间格式化工具（formatDate, formatTime, formatDisplayDate）
+  - `src/utils/eventUtils.ts` - 事件类型检查工具（isAllDayEvent, isTask, isInterval等）
+  - `src/utils/apngManager.ts` - APNG 图片自动重播管理器
+  - `src/utils/constants.ts` - 应用常量定义（事件类型、默认值等）
+- 统一弹窗样式：使用 CSS 变量管理弹窗样式（--modal-overlay-bg, --modal-container-bg等）
+- 代码优化：
+  - 减少约 200-250 行重复代码
+  - 提取公共函数，提高代码复用性
+  - 使用常量替代魔法数字和字符串
+  - 优化遮罩配置保存逻辑，提取 `applyOverlayConfig` 公共函数
+
+**提交记录**
+- `f73c1d0` - refactor: phase 1 optimization - extract date formatters and event utils, optimize overlay config logic
+- `c002a4d` - refactor: phase 2 optimization - extract APNG manager and unify modal styles with CSS variables
+- `0378627` - refactor: phase 3 optimization - extract constants and improve code maintainability
+
+---
+
 ### v0.7.0 - 日历显示优化与弹窗改进 (2026-02-18)
 
 **主要变更**
