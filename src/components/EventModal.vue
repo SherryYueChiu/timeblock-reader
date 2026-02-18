@@ -684,6 +684,8 @@ const timeRange = computed(() => {
   const start = new Date(props.event.dt_start);
   const end = new Date(props.event.dt_end);
   const isAllDay = props.event.allday === '1' || props.event.allday === 1 || props.event.allday === 'true';
+  const isTask = props.event.type === 2; // 任務
+  const isInterval = props.event.type === 4; // 區間
   
   // 格式化日期部分
   const formatDate = (date: Date) => {
@@ -703,7 +705,15 @@ const timeRange = computed(() => {
   const startDate = formatDate(start);
   const endDate = formatDate(end);
   
-  // 全天事件
+  // 對於任務和區間，如果是全天事件，不顯示"全天"，只顯示日期範圍
+  if (isAllDay && (isTask || isInterval)) {
+    if (startDate === endDate) {
+      return startDate;
+    }
+    return `${startDate} ~ ${endDate}`;
+  }
+  
+  // 全天事件（非任務和區間）
   if (isAllDay) {
     if (startDate === endDate) {
       return startDate;
@@ -911,7 +921,7 @@ const formatDisplayDate = (date: Date | null | undefined): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  return `${year}年${month}月${day}日`;
+  return `${year}/${month}/${day}`;
 };
 
 // 格式化事件時間（用於事件列表顯示）
@@ -919,12 +929,19 @@ const formatEventTime = (event: TimeBlock): string => {
   const start = new Date(event.dt_start);
   const end = new Date(event.dt_end);
   const isAllDay = event.allday === '1' || event.allday === 1 || event.allday === 'true';
+  const isTask = event.type === 2; // 任務
+  const isInterval = event.type === 4; // 區間
   
   const formatTime = (date: Date) => {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${hours}:${minutes}`;
   };
+  
+  // 對於任務和區間，如果是全天事件，不顯示"全天"
+  if (isAllDay && (isTask || isInterval)) {
+    return '';
+  }
   
   if (isAllDay) {
     return '全天';
@@ -966,6 +983,8 @@ const formatEventDetailTime = (event: TimeBlock): string => {
   const start = new Date(event.dt_start);
   const end = new Date(event.dt_end);
   const isAllDay = event.allday === '1' || event.allday === 1 || event.allday === 'true';
+  const isTask = event.type === 2; // 任務
+  const isInterval = event.type === 4; // 區間
   
   const formatDate = (date: Date) => {
     const year = date.getFullYear();
@@ -982,6 +1001,14 @@ const formatEventDetailTime = (event: TimeBlock): string => {
   
   const startDate = formatDate(start);
   const endDate = formatDate(end);
+  
+  // 對於任務和區間，如果是全天事件，不顯示"全天"，只顯示日期範圍
+  if (isAllDay && (isTask || isInterval)) {
+    if (startDate === endDate) {
+      return startDate;
+    }
+    return `${startDate} ~ ${endDate}`;
+  }
   
   if (isAllDay) {
     if (startDate === endDate) {

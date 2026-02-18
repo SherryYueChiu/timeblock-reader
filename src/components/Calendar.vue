@@ -283,7 +283,10 @@
               'interval-middle': isIntervalMiddle(interval, day.fullDate),
               'blurred': isEventBlurred(interval._id, day.fullDate)
             }"
-            :style="{ '--interval-color': getColorForLine(interval.color) }"
+            :style="{ 
+              '--interval-color': getColorForLine(interval.color),
+              bottom: `${0.25 + getIntervalLayer(interval, day.fullDate, getAllIntervalEvents()) * 2}rem`
+            }"
             @click.stop="handleEventClick(interval, day.fullDate)"
           >
             <div class="interval-content">
@@ -1118,13 +1121,30 @@ const getColorForCheckbox = (colorCode: number, opacity: number = 0.6): string =
   return getColorForLine(colorCode, opacity);
 };
 
-// 獲取要顯示的事件（移動端限制數量）
+// 獲取要顯示的事件（根據屏幕尺寸和垂直空間決定顯示數量）
 const getMaxEvents = (): number => {
-  // 根據屏幕寬度決定顯示數量
-  if (window.innerWidth <= 480) {
-    return 2; // 小屏幕顯示2個
-  } else if (window.innerWidth <= 768) {
-    return 3; // 中等屏幕顯示3個
+  // 根據屏幕寬度和高度決定顯示數量，善用垂直空間
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  
+  if (width <= 480) {
+    // 小屏幕：根據高度動態調整，至少顯示4個
+    if (height <= 600) {
+      return 4; // 較矮的屏幕顯示4個
+    } else if (height <= 800) {
+      return 5; // 中等高度顯示5個
+    } else {
+      return 6; // 較高的屏幕顯示6個
+    }
+  } else if (width <= 768) {
+    // 中等屏幕：顯示更多事件
+    if (height <= 700) {
+      return 5;
+    } else if (height <= 900) {
+      return 6;
+    } else {
+      return 7;
+    }
   }
   return 999; // 大屏幕顯示所有
 };
@@ -1136,13 +1156,105 @@ const getDisplayedEvents = (events: TimeBlock[]): TimeBlock[] => {
 };
 
 // 獲取普通事件（排除區間類型4）
+// 排序：活動(0)和備忘(3)優先顯示，任務(2)和習慣(5)在後面，避免跨日活動被任務左右錯開
 const getRegularEvents = (events: TimeBlock[]): TimeBlock[] => {
-  return events.filter(event => event.type !== 4);
+  const filtered = events.filter(event => event.type !== 4);
+  
+  // 分組：活動和備忘一組，任務和習慣一組，其他類型一組
+  const activities: TimeBlock[] = [];
+  const tasks: TimeBlock[] = [];
+  const others: TimeBlock[] = [];
+  
+  filtered.forEach(event => {
+    if (event.type === 0 || event.type === 3) {
+      // 活動(0)和備忘(3)
+      activities.push(event);
+    } else if (event.type === 2 || event.type === 5) {
+      // 任務(2)和習慣(5)
+      tasks.push(event);
+    } else {
+      // 其他類型
+      others.push(event);
+    }
+  });
+  
+  // 合併：活動和備忘在前，任務和習慣在後，其他類型最後
+  return [...activities, ...tasks, ...others];
 };
 
 // 獲取區間事件（類型4）
 const getIntervalEvents = (events: TimeBlock[]): TimeBlock[] => {
   return events.filter(event => event.type === 4);
+};
+
+// 獲取所有區間事件（用於計算層級）
+const getAllIntervalEvents = (): TimeBlock[] => {
+  return props.timeBlocks.filter(event => event.type === 4 && !event.dt_delete);
+};
+
+// 檢查兩個區間是否在指定日期重疊（如果兩個區間都在該日期顯示，就認為重疊）
+const doIntervalsOverlapOnDate = (interval1: TimeBlock, interval2: TimeBlock, date: Date): boolean => {
+  // 如果是同一個事件，不算重疊
+  if (interval1._id === interval2._id) {
+    return false;
+  }
+  // 兩個區間都必須在該日期存在，就認為重疊（因為它們會在視覺上顯示在同一天）
+  return isEventOnDate(interval1, date) && isEventOnDate(interval2, date);
+};
+
+// 計算所有區間在指定日期的層級映射（用於上下排列重疊的區間）
+const getIntervalLayers = (date: Date, allIntervals: TimeBlock[]): Map<string, number> => {
+  const layerMap = new Map<string, number>();
+  
+  // 獲取在該日期存在的所有區間
+  const intervalsOnDate = allIntervals.filter(i => isEventOnDate(i, date));
+  
+  // 如果只有一個或沒有區間，所有層級為0
+  if (intervalsOnDate.length <= 1) {
+    intervalsOnDate.forEach(i => layerMap.set(String(i._id), 0));
+    return layerMap;
+  }
+  
+  // 按開始時間排序
+  const sortedIntervals = [...intervalsOnDate].sort((a, b) => {
+    const startA = timestampToDate(a.dt_start).getTime();
+    const startB = timestampToDate(b.dt_start).getTime();
+    if (startA !== startB) {
+      return startA - startB;
+    }
+    // 如果開始時間相同，按結束時間排序
+    return getActualEndDate(a).getTime() - getActualEndDate(b).getTime();
+  });
+  
+  // 為每個區間分配層級（使用貪心算法）
+  sortedIntervals.forEach((interval, index) => {
+    // 找出所有與當前區間重疊的區間
+    const overlappingIntervals = sortedIntervals.slice(0, index).filter(other => 
+      doIntervalsOverlapOnDate(interval, other, date)
+    );
+    
+    if (overlappingIntervals.length === 0) {
+      // 沒有重疊，放在最底層
+      layerMap.set(String(interval._id), 0);
+    } else {
+      // 找出所有重疊區間中最大的層級
+      let maxLayer = -1;
+      overlappingIntervals.forEach(other => {
+        const otherLayer = layerMap.get(String(other._id)) || 0;
+        maxLayer = Math.max(maxLayer, otherLayer);
+      });
+      // 當前區間放在重疊區間的上層
+      layerMap.set(String(interval._id), maxLayer + 1);
+    }
+  });
+  
+  return layerMap;
+};
+
+// 獲取單個區間在指定日期的層級
+const getIntervalLayer = (interval: TimeBlock, date: Date, allIntervals: TimeBlock[]): number => {
+  const layerMap = getIntervalLayers(date, allIntervals);
+  return layerMap.get(String(interval._id)) || 0;
 };
 
 // 檢查前一天是否有相同的事件（用於活動類型0）
@@ -1942,7 +2054,9 @@ if (import.meta.env.DEV) {
   gap: 0.15rem;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .event-item {
@@ -2376,6 +2490,13 @@ if (import.meta.env.DEV) {
   .interval-end .interval-line-bar {
     margin-right: 0.25rem;
   }
+
+  .date-mark-sticker {
+    max-width: 40px;
+    max-height: 40px;
+    bottom: 0.3rem;
+    right: 0.3rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2501,6 +2622,19 @@ if (import.meta.env.DEV) {
   .event-more {
     padding: 0.1rem 0.25rem;
     font-size: 0.6rem;
+  }
+
+  .date-mark-sticker {
+    max-width: 30px;
+    max-height: 30px;
+    bottom: 0.2rem;
+    right: 0.2rem;
+    left: auto;
+  }
+
+  .date-mark-overlay {
+    padding: 0.15rem;
+    overflow: hidden;
   }
 }
 
