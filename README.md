@@ -7,6 +7,8 @@
 |  |  |
 |--------|--------|
 | ![截圖1](screenshots/01.png) | ![截圖2](screenshots/02.png) |
+| ![截圖3](./screenshots/03.png) | ![截圖4](./screenshots/04.png) |
+
 
 ## 功能特色
 
