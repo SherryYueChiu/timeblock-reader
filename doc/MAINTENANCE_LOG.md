@@ -10,6 +10,28 @@
 
 ## 版本历史
 
+### v0.8.1 - UI改进与优化 (2026-02-18)
+
+**主要变更**
+- ✅ 修复载入画面：移除重复的绿色勾，修复手机端消息宽度超出边界
+- ✅ 优化区间间距：减小区间上下排列的间距（从2rem改为1.2rem），更紧凑显示
+- ✅ 调整按钮位置：交换日历右上角按钮位置，搜索在左，分享在右
+
+**技术细节**
+- 载入画面优化：
+  - 移除 `typeText` 中的重复 `✓` 符号，只保留图标中的勾
+  - 添加 `max-width: 100%` 和 `box-sizing: border-box` 防止超出边界
+  - 改进文字换行：使用 `word-break: break-word` 和 `overflow-wrap: break-word`
+  - 手机端添加左右边距，使用 `width: calc(100% - 1rem)` 确保不超出边界
+- 区间间距优化：将层级间距从 `2rem` 调整为 `1.2rem`，节省约40%垂直空间
+- 按钮位置调整：交换 `header-actions` 中搜索和分享按钮的顺序
+
+**提交记录**
+- `787ce18` - fix: improve loading screen - remove duplicate checkmark and fix mobile width overflow, reduce interval spacing
+- `04f6b4b` - feat: swap header button positions - search on left, share on right
+
+---
+
 ### v0.8.0 - 代码重构优化 (2026-02-18)
 
 **主要变更**
