@@ -224,18 +224,18 @@
               :key="event._id"
               class="event-item"
               :class="{
-                'event-task': event.type === 2,
-                'event-habit': event.type === 5,
+                'event-task': event.type === EVENT_TYPES.TASK,
+                'event-habit': event.type === EVENT_TYPES.HABIT,
                 'blurred': isEventBlurred(event._id, day.fullDate),
-                'no-left-radius': event.type === 0 && hasSameEventOnPreviousDay(event, day.fullDate),
-                'no-right-radius': event.type === 0 && hasSameEventOnNextDay(event, day.fullDate)
+                'no-left-radius': event.type === EVENT_TYPES.ACTIVITY && hasSameEventOnPreviousDay(event, day.fullDate),
+                'no-right-radius': event.type === EVENT_TYPES.ACTIVITY && hasSameEventOnNextDay(event, day.fullDate)
               }"
-              :style="event.type !== 2 && event.type !== 5 ? { backgroundColor: getColor(event.color) } : {}"
+              :style="event.type !== EVENT_TYPES.TASK && event.type !== EVENT_TYPES.HABIT ? { backgroundColor: getColor(event.color) } : {}"
               :title="event.title"
               @click.stop="handleEventClick(event, day.fullDate)"
             >
               <!-- 任務(2)：圓角矩形checkbox -->
-              <template v-if="event.type === 2">
+              <template v-if="event.type === EVENT_TYPES.TASK">
                 <span 
                   class="checkbox checkbox-rounded-rect"
                   :class="{ 'checkbox-checked': event.dt_done && event.dt_done !== 0 }"
@@ -253,7 +253,7 @@
                 <span class="event-text" :style="{ color: getColor(event.color) }">{{ event.title }}</span>
               </template>
               <!-- 習慣(5)：圓形checkbox -->
-              <template v-else-if="event.type === 5">
+              <template v-else-if="event.type === EVENT_TYPES.HABIT">
                 <span 
                   class="checkbox checkbox-circle"
                   :style="{ borderColor: getColorForCheckbox(event.color) }"
@@ -348,6 +348,7 @@ import { getLunarIconType } from '../utils/lunarCalendar';
 import { formatDate, formatDateKey } from '../utils/dateFormatter';
 import { isAllDayEvent, isTask, isInterval, isHabit } from '../utils/eventUtils';
 import { ApngManager } from '../utils/apngManager';
+import { EVENT_TYPES, DEFAULT_STICKER_GROUP, APNG_REFRESH_INTERVAL } from '../utils/constants';
 
 const props = defineProps<{
   timeBlocks: TimeBlock[];
@@ -789,7 +790,7 @@ const getMarkOverlayStyle = (date: Date): Record<string, string> => {
 };
 
 // APNG重播管理（用於日曆上的貼圖）
-const calendarApngManager = new ApngManager(3000);
+const calendarApngManager = new ApngManager(APNG_REFRESH_INTERVAL);
 
 // 獲取農曆圖標
 const getLunarIcon = (date: Date): string | null => {
@@ -798,7 +799,7 @@ const getLunarIcon = (date: Date): string | null => {
 
 // 獲取貼圖路徑
 const getStickerPath = (stickerGroup: string | null, index: number): string => {
-  const group = stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
+  const group = stickerGroup || DEFAULT_STICKER_GROUP;
   const path = `/stickers/${group}/${index}.png`;
   // 檢查是否是APNG文件
   const isApng = path.toLowerCase().endsWith('.apng');
@@ -812,7 +813,7 @@ const getStickerPath = (stickerGroup: string | null, index: number): string => {
 const setCalendarApngRef = (el: HTMLImageElement | null, dateKey: string, stickerGroup: string | null, index: number) => {
   if (!el) return;
   
-  const group = stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
+  const group = stickerGroup || DEFAULT_STICKER_GROUP;
   const path = `/stickers/${group}/${index}.png`;
   const timerKey = `${dateKey}-${group}-${index}`;
   
@@ -1085,7 +1086,7 @@ const getColorForLine = (colorCode: number, opacity: number = 0.7): string => {
   return hex;
 };
 
-// 獲取顏色用於checkbox邊框
+// 獲取顏色用於checkbox邊框（使用getColorForLine，默認透明度0.6）
 const getColorForCheckbox = (colorCode: number, opacity: number = 0.6): string => {
   return getColorForLine(colorCode, opacity);
 };
@@ -1127,7 +1128,7 @@ const getDisplayedEvents = (events: TimeBlock[]): TimeBlock[] => {
 // 獲取普通事件（排除區間類型4）
 // 排序：活動(0)和備忘(3)優先顯示，任務(2)和習慣(5)在後面，避免跨日活動被任務左右錯開
 const getRegularEvents = (events: TimeBlock[]): TimeBlock[] => {
-  const filtered = events.filter(event => event.type !== 4);
+  const filtered = events.filter(event => event.type !== EVENT_TYPES.INTERVAL);
   
   // 分組：活動和備忘一組，任務和習慣一組，其他類型一組
   const activities: TimeBlock[] = [];
@@ -1135,7 +1136,7 @@ const getRegularEvents = (events: TimeBlock[]): TimeBlock[] => {
   const others: TimeBlock[] = [];
   
   filtered.forEach(event => {
-    if (event.type === 0 || event.type === 3) {
+    if (event.type === EVENT_TYPES.ACTIVITY || event.type === EVENT_TYPES.MEMO) {
       // 活動(0)和備忘(3)
       activities.push(event);
     } else if (isTask(event) || isHabit(event)) {
@@ -1153,12 +1154,12 @@ const getRegularEvents = (events: TimeBlock[]): TimeBlock[] => {
 
 // 獲取區間事件（類型4）
 const getIntervalEvents = (events: TimeBlock[]): TimeBlock[] => {
-  return events.filter(event => isInterval(event));
+  return events.filter(event => event.type === EVENT_TYPES.INTERVAL);
 };
 
 // 獲取所有區間事件（用於計算層級）
 const getAllIntervalEvents = (): TimeBlock[] => {
-  return props.timeBlocks.filter(event => isInterval(event) && !event.dt_delete);
+  return props.timeBlocks.filter(event => event.type === EVENT_TYPES.INTERVAL && !event.dt_delete);
 };
 
 // 檢查兩個區間是否在指定日期重疊（如果兩個區間都在該日期顯示，就認為重疊）
@@ -1228,7 +1229,7 @@ const getIntervalLayer = (interval: TimeBlock, date: Date, allIntervals: TimeBlo
 
 // 檢查前一天是否有相同的事件（用於活動類型0）
 const hasSameEventOnPreviousDay = (event: TimeBlock, currentDate: Date): boolean => {
-  if (event.type !== 0) return false;
+  if (event.type !== EVENT_TYPES.ACTIVITY) return false;
   
   const prevDate = new Date(currentDate);
   prevDate.setDate(prevDate.getDate() - 1);
@@ -1236,7 +1237,7 @@ const hasSameEventOnPreviousDay = (event: TimeBlock, currentDate: Date): boolean
   // 檢查前一天是否有相同的事件（相同的_id或相同的標題和時間範圍）
   const prevDayEvents = getEventsForDate(prevDate);
   return prevDayEvents.some(e => 
-    e.type === 0 && 
+    e.type === EVENT_TYPES.ACTIVITY && 
     (e._id === event._id || 
     (e.title === event.title && e.dt_start === event.dt_start && e.dt_end === event.dt_end))
   );
@@ -1244,7 +1245,7 @@ const hasSameEventOnPreviousDay = (event: TimeBlock, currentDate: Date): boolean
 
 // 檢查後一天是否有相同的事件（用於活動類型0）
 const hasSameEventOnNextDay = (event: TimeBlock, currentDate: Date): boolean => {
-  if (event.type !== 0) return false;
+  if (event.type !== EVENT_TYPES.ACTIVITY) return false;
   
   const nextDate = new Date(currentDate);
   nextDate.setDate(nextDate.getDate() + 1);
@@ -1252,7 +1253,7 @@ const hasSameEventOnNextDay = (event: TimeBlock, currentDate: Date): boolean => 
   // 檢查後一天是否有相同的事件
   const nextDayEvents = getEventsForDate(nextDate);
   return nextDayEvents.some(e => 
-    e.type === 0 && 
+    e.type === EVENT_TYPES.ACTIVITY && 
     (e._id === event._id || 
     (e.title === event.title && e.dt_start === event.dt_start && e.dt_end === event.dt_end))
   );

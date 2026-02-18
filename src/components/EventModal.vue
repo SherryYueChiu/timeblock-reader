@@ -449,6 +449,7 @@ import type { TimeBlock } from '../utils/dbReader';
 import { formatDate, formatTime, formatDisplayDate } from '../utils/dateFormatter';
 import { isAllDayEvent, isTask, isInterval } from '../utils/eventUtils';
 import { ApngManager } from '../utils/apngManager';
+import { DEFAULT_STICKER_GROUP, APNG_REFRESH_INTERVAL, STICKER_GROUPS, DEFAULT_OVERLAY_COLOR, DEFAULT_OVERLAY_OPACITY } from '../utils/constants';
 
 export interface DateMark {
   overlayColor: string;
@@ -492,10 +493,10 @@ const isBlurred = computed({
     // 這個setter不會被直接使用，但保留以支持v-model
   }
 });
-const overlayColor = ref('#646cff');
-const overlayOpacity = ref(33);
+const overlayColor = ref(DEFAULT_OVERLAY_COLOR);
+const overlayOpacity = ref(DEFAULT_OVERLAY_OPACITY);
 const markText = ref('');
-const selectedStickerGroup = ref<string>('ㄇㄚˊ幾兔－表情貼');
+const selectedStickerGroup = ref<string>(DEFAULT_STICKER_GROUP);
 const selectedStickerIndex = ref<number | null>(null);
 const overlayStyle = ref<Record<string, string>>({});
 
@@ -530,12 +531,8 @@ const isEditingDescription = ref(false);
 const editingDescription = ref('');
 const descriptionInputRef = ref<HTMLTextAreaElement | null>(null);
 
-// 貼圖組配置
-const stickerGroups = [
-  { id: 'ㄇㄚˊ幾兔－表情貼', name: '表情貼' },
-  { id: 'ㄇㄚˊ幾兔－表情貼2', name: '表情貼2' },
-  { id: 'ㄇㄚˊ幾兔－動態表情貼', name: '動態表情貼' }
-];
+// 貼圖組配置（使用常量）
+const stickerGroups = STICKER_GROUPS;
 
 const currentStickerGroup = computed(() => selectedStickerGroup.value);
 
@@ -584,14 +581,14 @@ watch([() => props.isOpen, () => props.date, () => props.event], ([isOpen, date,
       overlayColor.value = mark.overlayColor;
       overlayOpacity.value = mark.overlayOpacity;
       markText.value = mark.markText;
-      selectedStickerGroup.value = mark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
+      selectedStickerGroup.value = mark.stickerGroup || DEFAULT_STICKER_GROUP;
       selectedStickerIndex.value = mark.stickerIndex;
     } else {
       // 如果没有標記，重置為默認值
-      overlayColor.value = '#646cff';
-      overlayOpacity.value = 33;
+      overlayColor.value = DEFAULT_OVERLAY_COLOR;
+      overlayOpacity.value = DEFAULT_OVERLAY_OPACITY;
       markText.value = '';
-      selectedStickerGroup.value = 'ㄇㄚˊ幾兔－表情貼';
+      selectedStickerGroup.value = DEFAULT_STICKER_GROUP;
       selectedStickerIndex.value = null;
     }
     updateOverlayStyle();
@@ -615,23 +612,23 @@ watch(() => props.dateMark, (newMark, oldMark) => {
     // 只有在選擇了具體貼圖時才更新 stickerGroup
     // 如果用戶正在切換組（selectedStickerIndex 為 null），保持用戶當前選擇的組
     if (newMark.stickerIndex !== null) {
-      selectedStickerGroup.value = newMark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
+      selectedStickerGroup.value = newMark.stickerGroup || DEFAULT_STICKER_GROUP;
       selectedStickerIndex.value = newMark.stickerIndex;
     } else {
       // 如果没有選擇貼圖，但用戶正在切換組，保持用戶的選擇
       // 只有在用戶沒有主動選擇組時才使用 dateMark 的 stickerGroup
       if (selectedStickerIndex.value === null && (!oldMark || oldMark.stickerGroup === null)) {
-        selectedStickerGroup.value = newMark.stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
+        selectedStickerGroup.value = newMark.stickerGroup || DEFAULT_STICKER_GROUP;
       }
       selectedStickerIndex.value = null;
     }
     updateOverlayStyle();
   } else if (props.date && !oldMark) {
     // 只有在彈窗剛打開且沒有舊標記時才重置為默認值
-    overlayColor.value = '#646cff';
-    overlayOpacity.value = 33;
+    overlayColor.value = DEFAULT_OVERLAY_COLOR;
+    overlayOpacity.value = DEFAULT_OVERLAY_OPACITY;
     markText.value = '';
-    selectedStickerGroup.value = 'ㄇㄚˊ幾兔－表情貼';
+    selectedStickerGroup.value = DEFAULT_STICKER_GROUP;
     selectedStickerIndex.value = null;
     updateOverlayStyle();
   }
@@ -745,7 +742,7 @@ const selectStickerGroup = (groupId: string) => {
 };
 
 // APNG重播管理
-const eventModalApngManager = new ApngManager(3000);
+const eventModalApngManager = new ApngManager(APNG_REFRESH_INTERVAL);
 
 // 獲取貼圖圖片src（支持APNG自動重播）
 const getStickerImageSrc = (path: string): string => {
@@ -785,10 +782,10 @@ const clearSticker = () => {
 
 // 重置所有樣式（清除遮罩、貼圖、文字）
 const resetStyle = () => {
-  overlayColor.value = '#646cff';
-  overlayOpacity.value = 33;
+  overlayColor.value = DEFAULT_OVERLAY_COLOR;
+  overlayOpacity.value = DEFAULT_OVERLAY_OPACITY;
   markText.value = '';
-  selectedStickerGroup.value = 'ㄇㄚˊ幾兔－表情貼';
+  selectedStickerGroup.value = DEFAULT_STICKER_GROUP;
   selectedStickerIndex.value = null;
   updateOverlayStyle();
 };
