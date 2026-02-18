@@ -347,6 +347,7 @@ import { generateShareUrl, generateMultiMonthShareUrl } from '../utils/shareEnco
 import { getLunarIconType } from '../utils/lunarCalendar';
 import { formatDate, formatDateKey } from '../utils/dateFormatter';
 import { isAllDayEvent, isTask, isInterval, isHabit } from '../utils/eventUtils';
+import { ApngManager } from '../utils/apngManager';
 
 const props = defineProps<{
   timeBlocks: TimeBlock[];
@@ -788,8 +789,7 @@ const getMarkOverlayStyle = (date: Date): Record<string, string> => {
 };
 
 // APNG重播管理（用於日曆上的貼圖）
-const calendarApngTimers = ref<Map<string, number>>(new Map());
-const calendarApngRefs = ref<Map<string, HTMLImageElement>>(new Map());
+const calendarApngManager = new ApngManager(3000);
 
 // 獲取農曆圖標
 const getLunarIcon = (date: Date): string | null => {
@@ -814,37 +814,14 @@ const setCalendarApngRef = (el: HTMLImageElement | null, dateKey: string, sticke
   
   const group = stickerGroup || 'ㄇㄚˊ幾兔－表情貼';
   const path = `/stickers/${group}/${index}.png`;
-  const isApng = path.toLowerCase().endsWith('.apng');
+  const timerKey = `${dateKey}-${group}-${index}`;
   
-  if (isApng) {
-    const timerKey = `${dateKey}-${group}-${index}`;
-    calendarApngRefs.value.set(timerKey, el);
-    
-    // 清除舊的定時器
-    if (calendarApngTimers.value.has(timerKey)) {
-      window.clearInterval(calendarApngTimers.value.get(timerKey)!);
-    }
-    
-    // 設置新的定時器，每3秒重播一次
-    const timer = window.setInterval(() => {
-      const img = calendarApngRefs.value.get(timerKey);
-      if (img) {
-        const currentSrc = img.src.split('?')[0];
-        img.src = `${currentSrc}?t=${Date.now()}`;
-      }
-    }, 3000) as unknown as number;
-    
-    calendarApngTimers.value.set(timerKey, timer);
-  }
+  calendarApngManager.registerImage(el, timerKey, path);
 };
 
 // 清理日曆APNG定時器
 onBeforeUnmount(() => {
-  calendarApngTimers.value.forEach((timer) => {
-    window.clearInterval(timer);
-  });
-  calendarApngTimers.value.clear();
-  calendarApngRefs.value.clear();
+  calendarApngManager.cleanup();
 });
 
 // 關閉彈窗
@@ -1479,37 +1456,37 @@ if (import.meta.env.DEV) {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--modal-overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--modal-z-index);
   padding: 1rem;
 }
 
 .share-range-modal-container {
-  background-color: rgba(30, 30, 30, 0.95);
-  border-radius: 12px;
+  background-color: var(--modal-container-bg);
+  border-radius: var(--modal-container-border-radius);
   max-width: 650px;
   width: 100%;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--modal-container-shadow);
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .share-range-modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: var(--modal-header-padding);
+  border-bottom: var(--modal-header-border);
 }
 
 .share-range-modal-header h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.87);
+  font-size: var(--modal-title-font-size);
+  font-weight: var(--modal-title-font-weight);
+  color: var(--modal-title-color);
 }
 
 .share-range-modal-content {
@@ -1672,37 +1649,37 @@ if (import.meta.env.DEV) {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--modal-overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--modal-z-index);
   padding: 1rem;
 }
 
 .search-modal-container {
-  background-color: rgba(30, 30, 30, 0.95);
-  border-radius: 12px;
+  background-color: var(--modal-container-bg);
+  border-radius: var(--modal-container-border-radius);
   max-width: 600px;
   width: 100%;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--modal-container-shadow);
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .search-modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: var(--modal-header-padding);
+  border-bottom: var(--modal-header-border);
 }
 
 .search-modal-header h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.87);
+  font-size: var(--modal-title-font-size);
+  font-weight: var(--modal-title-font-weight);
+  color: var(--modal-title-color);
 }
 
 .search-modal-content {

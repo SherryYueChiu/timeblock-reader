@@ -448,6 +448,7 @@ import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
 import { formatDate, formatTime, formatDisplayDate } from '../utils/dateFormatter';
 import { isAllDayEvent, isTask, isInterval } from '../utils/eventUtils';
+import { ApngManager } from '../utils/apngManager';
 
 export interface DateMark {
   overlayColor: string;
@@ -744,8 +745,7 @@ const selectStickerGroup = (groupId: string) => {
 };
 
 // APNG重播管理
-const apngRefreshTimers = ref<Map<string, number>>(new Map());
-const apngImageRefs = ref<Map<string, HTMLImageElement>>(new Map());
+const eventModalApngManager = new ApngManager(3000);
 
 // 獲取貼圖圖片src（支持APNG自動重播）
 const getStickerImageSrc = (path: string): string => {
@@ -767,28 +767,8 @@ const setApngImageRef = (el: HTMLImageElement | null, index: number) => {
   const path = stickerPaths.value[index - 1];
   if (!path) return;
   
-  const isApng = path.toLowerCase().endsWith('.apng');
-  
-  if (isApng) {
-    const timerKey = `${selectedStickerGroup.value}-${index}`;
-    apngImageRefs.value.set(timerKey, el);
-    
-    // 清除舊的定時器
-    if (apngRefreshTimers.value.has(timerKey)) {
-      window.clearInterval(apngRefreshTimers.value.get(timerKey)!);
-    }
-    
-    // 設置新的定時器，每3秒重播一次
-    const timer = window.setInterval(() => {
-      const img = apngImageRefs.value.get(timerKey);
-      if (img) {
-        const currentSrc = img.src.split('?')[0];
-        img.src = `${currentSrc}?t=${Date.now()}`;
-      }
-    }, 3000) as unknown as number;
-    
-    apngRefreshTimers.value.set(timerKey, timer);
-  }
+  const timerKey = `${selectedStickerGroup.value}-${index}`;
+  eventModalApngManager.registerImage(el, timerKey, path);
 };
 
 const selectSticker = (index: number) => {
@@ -815,11 +795,7 @@ const resetStyle = () => {
 
 // 清理APNG定時器
 onBeforeUnmount(() => {
-  apngRefreshTimers.value.forEach((timer) => {
-    window.clearInterval(timer);
-  });
-  apngRefreshTimers.value.clear();
-  apngImageRefs.value.clear();
+  eventModalApngManager.cleanup();
 });
 
 const updateOverlayStyle = () => {
@@ -1218,23 +1194,23 @@ updateOverlayStyle();
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--modal-overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--modal-z-index);
   padding: 1rem;
 }
 
 .modal-container {
-  background-color: rgba(30, 30, 30, 0.95);
-  border-radius: 12px;
+  background-color: var(--modal-container-bg);
+  border-radius: var(--modal-container-border-radius);
   max-width: 600px;
   width: 100%;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--modal-container-shadow);
   overflow: hidden;
 }
 
@@ -1242,8 +1218,8 @@ updateOverlayStyle();
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: var(--modal-header-padding);
+  border-bottom: var(--modal-header-border);
 }
 
 .header-title-wrapper {
@@ -1256,9 +1232,9 @@ updateOverlayStyle();
 
 .modal-header h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.87);
+  font-size: var(--modal-title-font-size);
+  font-weight: var(--modal-title-font-weight);
+  color: var(--modal-title-color);
   flex: 1;
   min-width: 0;
 }
@@ -1313,7 +1289,7 @@ updateOverlayStyle();
 }
 
 .modal-content {
-  padding: 1.5rem;
+  padding: var(--modal-content-padding);
   overflow-y: auto;
   flex: 1;
   min-height: 0;
