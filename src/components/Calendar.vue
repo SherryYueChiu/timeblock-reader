@@ -345,6 +345,8 @@ import EventModal from './EventModal.vue';
 import type { DateMark } from './EventModal.vue';
 import { generateShareUrl, generateMultiMonthShareUrl } from '../utils/shareEncoder';
 import { getLunarIconType } from '../utils/lunarCalendar';
+import { formatDate, formatDateKey } from '../utils/dateFormatter';
+import { isAllDayEvent, isTask, isInterval, isHabit } from '../utils/eventUtils';
 
 const props = defineProps<{
   timeBlocks: TimeBlock[];
@@ -590,9 +592,9 @@ const formatEventDate = (date: Date, event: TimeBlock): string => {
   const month = date.getMonth() + 1;
   const day = date.getDate();
   
-  const isAllDay = event.allday === '1' || event.allday === 1 || event.allday === 'true';
+  const allDay = isAllDayEvent(event);
   
-  if (isAllDay) {
+  if (allDay) {
     return `${year}年${month}月${day}日`;
   } else {
     const hours = String(date.getHours()).padStart(2, '0');
@@ -706,13 +708,8 @@ const handleDayClick = (day: { fullDate: Date; events: TimeBlock[] }) => {
   isModalOpen.value = true;
 };
 
-// 格式化日期為 YYYY-MM-DD
-const formatDateKey = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+// 格式化日期為 YYYY-MM-DD（使用工具函数）
+// formatDateKey 已从 dateFormatter 导入
 
 // 切換日期模糊狀態
 const toggleDateBlur = (date: Date | null) => {
@@ -865,13 +862,8 @@ const timestampToDate = (timestamp: number): Date => {
   return new Date(timestamp);
 };
 
-// 格式化日期為 YYYY-MM-DD
-const formatDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+// 格式化日期為 YYYY-MM-DD（使用工具函数）
+// formatDate 已从 dateFormatter 导入
 
 // 獲取全天活動的實際結束日期（處理時區問題）
 const getActualEndDate = (event: TimeBlock): Date => {
@@ -883,7 +875,7 @@ const getActualEndDate = (event: TimeBlock): Date => {
   let endDateOnly = new Date(eventEnd.getFullYear(), eventEnd.getMonth(), eventEnd.getDate());
   
   // 如果是全天事件
-  if (event.allday === '1' || event.allday === 1 || event.allday === 'true') {
+  if (isAllDayEvent(event)) {
     // 檢查結束時間的本地時區時間
     // 如果結束時間在第二天早上8點之前，這通常是因為時區轉換導致的
     // 實際結束日期應該是結束日期的前一天
@@ -963,7 +955,7 @@ const isEventOnDate = (event: TimeBlock, date: Date): boolean => {
   );
 
   // 如果是全天事件，比較日期部分
-  if (event.allday === '1' || event.allday === 1 || event.allday === 'true') {
+  if (isAllDayEvent(event)) {
     const eventStartDate = new Date(
       eventStart.getFullYear(),
       eventStart.getMonth(),
@@ -1169,7 +1161,7 @@ const getRegularEvents = (events: TimeBlock[]): TimeBlock[] => {
     if (event.type === 0 || event.type === 3) {
       // 活動(0)和備忘(3)
       activities.push(event);
-    } else if (event.type === 2 || event.type === 5) {
+    } else if (isTask(event) || isHabit(event)) {
       // 任務(2)和習慣(5)
       tasks.push(event);
     } else {
@@ -1184,12 +1176,12 @@ const getRegularEvents = (events: TimeBlock[]): TimeBlock[] => {
 
 // 獲取區間事件（類型4）
 const getIntervalEvents = (events: TimeBlock[]): TimeBlock[] => {
-  return events.filter(event => event.type === 4);
+  return events.filter(event => isInterval(event));
 };
 
 // 獲取所有區間事件（用於計算層級）
 const getAllIntervalEvents = (): TimeBlock[] => {
-  return props.timeBlocks.filter(event => event.type === 4 && !event.dt_delete);
+  return props.timeBlocks.filter(event => isInterval(event) && !event.dt_delete);
 };
 
 // 檢查兩個區間是否在指定日期重疊（如果兩個區間都在該日期顯示，就認為重疊）

@@ -446,6 +446,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue';
 import type { TimeBlock } from '../utils/dbReader';
+import { formatDate, formatTime, formatDisplayDate } from '../utils/dateFormatter';
+import { isAllDayEvent, isTask, isInterval } from '../utils/eventUtils';
 
 export interface DateMark {
   overlayColor: string;
@@ -683,30 +685,15 @@ const timeRange = computed(() => {
   
   const start = new Date(props.event.dt_start);
   const end = new Date(props.event.dt_end);
-  const isAllDay = props.event.allday === '1' || props.event.allday === 1 || props.event.allday === 'true';
-  const isTask = props.event.type === 2; // 任務
-  const isInterval = props.event.type === 4; // 區間
-  
-  // 格式化日期部分
-  const formatDate = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  
-  // 格式化时间部分
-  const formatTime = (date: Date) => {
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
+  const allDay = isAllDayEvent(props.event);
+  const task = isTask(props.event);
+  const interval = isInterval(props.event);
   
   const startDate = formatDate(start);
   const endDate = formatDate(end);
   
   // 對於任務和區間，如果是全天事件，不顯示"全天"，只顯示日期範圍
-  if (isAllDay && (isTask || isInterval)) {
+  if (allDay && (task || interval)) {
     if (startDate === endDate) {
       return startDate;
     }
@@ -714,7 +701,7 @@ const timeRange = computed(() => {
   }
   
   // 全天事件（非任務和區間）
-  if (isAllDay) {
+  if (allDay) {
     if (startDate === endDate) {
       return startDate;
     }
@@ -722,16 +709,16 @@ const timeRange = computed(() => {
   }
   
   // 定时事件
-  const startTime = formatTime(start);
-  const endTime = formatTime(end);
+  const startTimeStr = formatTime(start);
+  const endTimeStr = formatTime(end);
   
   // 如果是同一天，只显示一次日期
   if (startDate === endDate) {
-    return `${startDate} ${startTime} ~ ${endTime}`;
+    return `${startDate} ${startTimeStr} ~ ${endTimeStr}`;
   }
   
   // 不同天，显示完整日期时间
-  return `${startDate} ${startTime} ~ ${endDate} ${endTime}`;
+  return `${startDate} ${startTimeStr} ~ ${endDate} ${endTimeStr}`;
 });
 
 const selectedSticker = computed(() => {
@@ -915,41 +902,29 @@ const cancelEditDescription = () => {
   editingDescription.value = '';
 };
 
-// 格式化顯示日期（用於標題）
-const formatDisplayDate = (date: Date | null | undefined): string => {
-  if (!date) return '';
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}/${month}/${day}`;
-};
+// 格式化顯示日期（用於標題）- 使用工具函数
+// formatDisplayDate 已从 dateFormatter 导入
 
 // 格式化事件時間（用於事件列表顯示）
 const formatEventTime = (event: TimeBlock): string => {
   const start = new Date(event.dt_start);
   const end = new Date(event.dt_end);
-  const isAllDay = event.allday === '1' || event.allday === 1 || event.allday === 'true';
-  const isTask = event.type === 2; // 任務
-  const isInterval = event.type === 4; // 區間
-  
-  const formatTime = (date: Date) => {
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
+  const allDay = isAllDayEvent(event);
+  const task = isTask(event);
+  const interval = isInterval(event);
   
   // 對於任務和區間，如果是全天事件，不顯示"全天"
-  if (isAllDay && (isTask || isInterval)) {
+  if (allDay && (task || interval)) {
     return '';
   }
   
-  if (isAllDay) {
+  if (allDay) {
     return '全天';
   }
   
-  const startTime = formatTime(start);
-  const endTime = formatTime(end);
-  return `${startTime} ~ ${endTime}`;
+  const startTimeStr = formatTime(start);
+  const endTimeStr = formatTime(end);
+  return `${startTimeStr} ~ ${endTimeStr}`;
 };
 
 // 檢查事件列表中的事件是否被模糊
@@ -982,49 +957,36 @@ const closeEventDetail = () => {
 const formatEventDetailTime = (event: TimeBlock): string => {
   const start = new Date(event.dt_start);
   const end = new Date(event.dt_end);
-  const isAllDay = event.allday === '1' || event.allday === 1 || event.allday === 'true';
-  const isTask = event.type === 2; // 任務
-  const isInterval = event.type === 4; // 區間
-  
-  const formatDate = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  
-  const formatTime = (date: Date) => {
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
+  const allDay = isAllDayEvent(event);
+  const task = isTask(event);
+  const interval = isInterval(event);
   
   const startDate = formatDate(start);
   const endDate = formatDate(end);
   
   // 對於任務和區間，如果是全天事件，不顯示"全天"，只顯示日期範圍
-  if (isAllDay && (isTask || isInterval)) {
+  if (allDay && (task || interval)) {
     if (startDate === endDate) {
       return startDate;
     }
     return `${startDate} ~ ${endDate}`;
   }
   
-  if (isAllDay) {
+  if (allDay) {
     if (startDate === endDate) {
       return startDate;
     }
     return `${startDate} ~ ${endDate}`;
   }
   
-  const startTime = formatTime(start);
-  const endTime = formatTime(end);
+  const startTimeStr = formatTime(start);
+  const endTimeStr = formatTime(end);
   
   if (startDate === endDate) {
-    return `${startDate} ${startTime} ~ ${endTime}`;
+    return `${startDate} ${startTimeStr} ~ ${endTimeStr}`;
   }
   
-  return `${startDate} ${startTime} ~ ${endDate} ${endTime}`;
+  return `${startDate} ${startTimeStr} ~ ${endDate} ${endTimeStr}`;
 };
 
 // 事件詳情彈窗的編輯功能
@@ -1126,29 +1088,18 @@ const copyOverlay = () => {
   // 可以添加一个toast提示，但这里先简单处理
 };
 
-// 貼上複製的遮罩配置（優先使用複製的，如果沒有則使用上次的）
-const pasteCopiedOverlay = () => {
+// 應用遮罩配置並保存到當前日期（公共函數）
+const applyOverlayConfig = (config: DateMark, closeModal: boolean = false) => {
   if (!props.date) return;
   
-  let configToUse: DateMark | null = null;
-  
-  // 優先使用複製的遮罩
-  if (copiedOverlayConfig.value) {
-    configToUse = copiedOverlayConfig.value;
-  } else if (lastOverlayConfig.value) {
-    // 如果沒有複製的，使用上次的配置
-    configToUse = lastOverlayConfig.value;
-  } else {
-    return;
+  // 應用配置到本地狀態
+  overlayColor.value = config.overlayColor;
+  overlayOpacity.value = config.overlayOpacity;
+  markText.value = config.markText;
+  if (config.stickerGroup) {
+    selectedStickerGroup.value = config.stickerGroup;
   }
-  
-  overlayColor.value = configToUse.overlayColor;
-  overlayOpacity.value = configToUse.overlayOpacity;
-  markText.value = configToUse.markText;
-  if (configToUse.stickerGroup) {
-    selectedStickerGroup.value = configToUse.stickerGroup;
-  }
-  selectedStickerIndex.value = configToUse.stickerIndex;
+  selectedStickerIndex.value = config.stickerIndex;
   updateOverlayStyle();
   
   // 保存到當前日期
@@ -1164,8 +1115,27 @@ const pasteCopiedOverlay = () => {
   // 同時更新為上次使用的配置（用於F4）
   lastOverlayConfig.value = mark;
   
-  // 關閉主彈窗
-  handleClose();
+  // 如果需要，關閉主彈窗
+  if (closeModal) {
+    handleClose();
+  }
+};
+
+// 貼上複製的遮罩配置（優先使用複製的，如果沒有則使用上次的）
+const pasteCopiedOverlay = () => {
+  let configToUse: DateMark | null = null;
+  
+  // 優先使用複製的遮罩
+  if (copiedOverlayConfig.value) {
+    configToUse = copiedOverlayConfig.value;
+  } else if (lastOverlayConfig.value) {
+    // 如果沒有複製的，使用上次的配置
+    configToUse = lastOverlayConfig.value;
+  } else {
+    return;
+  }
+  
+  applyOverlayConfig(configToUse, true);
 };
 
 // F4重複操作：應用上次的遮罩配置（優先使用複製的遮罩，如果沒有則使用上次的）
@@ -1179,24 +1149,7 @@ const repeatLastOverlay = () => {
   // 如果沒有複製的遮罩，使用上次的配置
   if (!lastOverlayConfig.value || !props.date) return;
   
-  overlayColor.value = lastOverlayConfig.value.overlayColor;
-  overlayOpacity.value = lastOverlayConfig.value.overlayOpacity;
-  markText.value = lastOverlayConfig.value.markText;
-  if (lastOverlayConfig.value.stickerGroup) {
-    selectedStickerGroup.value = lastOverlayConfig.value.stickerGroup;
-  }
-  selectedStickerIndex.value = lastOverlayConfig.value.stickerIndex;
-  updateOverlayStyle();
-  
-  // 保存到當前日期
-  const mark: DateMark = {
-    overlayColor: overlayColor.value,
-    overlayOpacity: overlayOpacity.value,
-    markText: markText.value,
-    stickerGroup: selectedStickerIndex.value ? selectedStickerGroup.value : null,
-    stickerIndex: selectedStickerIndex.value
-  };
-  emit('updateDateMark', props.date, mark);
+  applyOverlayConfig(lastOverlayConfig.value, false);
 };
 
 // 鍵盤快捷鍵支持（F4）
