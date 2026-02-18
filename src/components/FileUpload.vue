@@ -122,7 +122,7 @@ const handleFileChange = async (event: Event) => {
     
     // 成功状态
     fileStatus.value = 'success';
-    typeText(`✓ 成功載入：${file.name}`, 30);
+    typeText(`成功載入：${file.name}`, 30);
     
     // 延迟一下再触发事件，让用户看到成功消息
     setTimeout(() => {
@@ -383,6 +383,8 @@ const handleFileChange = async (event: Event) => {
   border: 2px solid transparent;
   min-height: 60px;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   animation: slideIn 0.4s ease-out;
   position: relative;
   z-index: 0;
@@ -420,7 +422,10 @@ const handleFileChange = async (event: Event) => {
   text-align: left;
   font-size: 1rem;
   font-weight: 500;
-  word-break: break-all;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .typing-text {
@@ -585,16 +590,20 @@ const handleFileChange = async (event: Event) => {
   }
 
   .status-message {
-    padding: 0.875rem 1.25rem;
+    padding: 0.875rem 1rem;
     min-height: 56px;
+    gap: 0.625rem;
   }
 
   .status-icon {
     font-size: 1.3rem;
+    flex-shrink: 0;
   }
 
   .status-text {
     font-size: 0.9rem;
+    flex: 1;
+    min-width: 0;
   }
 }
 
@@ -628,17 +637,24 @@ const handleFileChange = async (event: Event) => {
   }
 
   .status-message {
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0.875rem;
     min-height: 52px;
     gap: 0.5rem;
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+    width: calc(100% - 1rem);
+    max-width: calc(100% - 1rem);
   }
 
   .status-icon {
     font-size: 1.2rem;
+    flex-shrink: 0;
   }
 
   .status-text {
     font-size: 0.85rem;
+    flex: 1;
+    min-width: 0;
   }
 }
 </style>

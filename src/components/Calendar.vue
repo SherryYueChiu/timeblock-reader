@@ -285,7 +285,7 @@
             }"
             :style="{ 
               '--interval-color': getColorForLine(interval.color),
-              bottom: `${0.25 + getIntervalLayer(interval, day.fullDate, getAllIntervalEvents()) * 2}rem`
+              bottom: `${0.25 + getIntervalLayer(interval, day.fullDate, getAllIntervalEvents()) * 1.2}rem`
             }"
             @click.stop="handleEventClick(interval, day.fullDate)"
           >
@@ -346,7 +346,7 @@ import type { DateMark } from './EventModal.vue';
 import { generateShareUrl, generateMultiMonthShareUrl } from '../utils/shareEncoder';
 import { getLunarIconType } from '../utils/lunarCalendar';
 import { formatDate, formatDateKey } from '../utils/dateFormatter';
-import { isAllDayEvent, isTask, isInterval, isHabit } from '../utils/eventUtils';
+import { isAllDayEvent, isTask, isHabit } from '../utils/eventUtils';
 import { ApngManager } from '../utils/apngManager';
 import { EVENT_TYPES, DEFAULT_STICKER_GROUP, APNG_REFRESH_INTERVAL } from '../utils/constants';
 
